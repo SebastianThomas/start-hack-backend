@@ -11,8 +11,6 @@ import org.zalando.problem.spring.web.autoconfigure.security.ProblemSecurityAuto
             "ch.sthomas.hack.start.service",
             "ch.sthomas.hack.start.ws",
         },
-        // exclude ErrorMvcAutoConfiguration and ProblemSecurityAutoConfiguration when using
-        // zalando/problem
         exclude = {ErrorMvcAutoConfiguration.class, ProblemSecurityAutoConfiguration.class})
 public class StartHackWsApplication {
 

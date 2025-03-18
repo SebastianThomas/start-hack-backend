@@ -69,10 +69,10 @@ jobs:
                     username: ${{ secrets.docker_hub_username }}
                     password: ${{ secrets.docker_hub_password }}
 
-            -   name: Build and push native docker image
+            -   name: Build and push docker image
                 run: |
                     mvn --batch-mode package jib:build \
-                    -f start-hack-backend/pom.xml \
+                    -f start-hack-backend/start-hack-ws/pom.xml \
                     -Dconfig.deploy.env=dev -Dconfig.directory=/config \
                     -Dimage=${{ secrets.docker_hub_username }}/start-hack-backend:${{ github.ref_name }} \
                     -Dimage=${{ secrets.docker_hub_username }}/start-hack-backend:latest \
