@@ -12,14 +12,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -46,7 +45,8 @@ public class WsSecurityConfig {
     }
 
     /**
-     * Set /v1/** to permitAll and remove oauth2ResourceServer if no authentication is used on these endpoints
+     * Set /v1/** to permitAll and remove oauth2ResourceServer if no authentication is used on these
+     * endpoints
      */
     @Bean
     SecurityFilterChain bearerFilterChain(final HttpSecurity http) throws Exception {
@@ -68,10 +68,7 @@ public class WsSecurityConfig {
                         customizer
                                 .dispatcherTypeMatchers(DispatcherType.ERROR)
                                 .authenticated()
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/check",
-                                        "/actuator/prometheus")
+                                .requestMatchers(HttpMethod.GET, "/check", "/actuator/prometheus")
                                 .permitAll()
                                 .anyRequest() // deny all others
                                 .denyAll());
@@ -83,7 +80,7 @@ public class WsSecurityConfig {
     InMemoryUserDetailsManager userDetailsService() {
         final var user =
                 User.builder()
-                        .username("ubswagger")
+                        .username("swaggerUser")
                         .password("$2a$10$kkl4QFGZPM2i.TwQPuXhMewLtDBvF.FRohAtMp7dZ4wq8q1N.U7yy")
                         .roles(SWAGGER)
                         .build();

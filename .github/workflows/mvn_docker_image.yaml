@@ -1,0 +1,91 @@
+name: Build with maven and Push to Docker Registry
+on:
+    workflow_call:
+        inputs:
+            ref_name:
+                required: true
+                type: string
+                description: tag or branch name
+            target_env:
+                required: false
+                default: dev
+                type: string
+                description: Currently only used for native builds
+
+        secrets:
+            docker_hub_username:
+                required: true
+            docker_hub_password:
+                required: true
+
+jobs:
+    create-docker-image:
+        name: Create Docker Image
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v4
+                with:
+                    ref: ${{ inputs.ref_name }}
+
+            -   name: Git Status
+                run: git status
+
+            -   name: Set up JDK
+                uses: actions/setup-java@v4
+                with:
+                    java-version: 24
+                    distribution: 'temurin'
+
+            -   name: Create maven central settings.xml
+                uses: whelk-io/maven-settings-xml-action@9dc09b23833fa9aa7f27b63db287951856f3433d
+
+            -   name: Set TAG_NAME from ref_name
+                run: echo "TAG_NAME=${{ inputs.ref_name }}" >> $GITHUB_ENV
+
+            -   name: Replace all characters in `\/:"<>|?*` by `-` in TAG_NAME
+                run: echo "TAG_NAME=$(echo "$TAG_NAME" | sed 's/[\/:"<>|?*]/-/g')" >> $GITHUB_ENV
+
+            -   name: Set maven root directory from input
+                run: echo "MVN_ROOT_DIR=start-hack-backend" >> $GITHUB_ENV
+
+            -   name: Set VERSION from TAG_NAME
+                run: echo "VERSION=${TAG_NAME}" >> $GITHUB_ENV
+
+            -   name: Strip leading `v` from VERSION
+                run: echo "VERSION=${VERSION##v}" >> $GITHUB_ENV
+
+            -   name: Set versions
+                run: mvn -f ${{ env.MVN_ROOT_DIR }}/pom.xml versions:set -DnewVersion=$VERSION
+
+            -   name: Commit versions
+                run: mvn -f ${{ env.MVN_ROOT_DIR }}/pom.xml versions:commit
+
+            -   name: Build with Maven
+                run: mvn --batch-mode --update-snapshots install -DskipTests -f ${{ env.MVN_ROOT_DIR }}/pom.xml
+
+            -   name: Set default docker image
+                run: |
+                    echo "DOCKER_IMAGE=eclipse-temurin:24" >> $GITHUB_ENV
+
+            -   name: Docker image for build
+                run: |
+                    echo "Docker image jor build: $DOCKER_IMAGE"
+
+            -   name: Login to DockerHub
+                uses: docker/login-action@v2
+                with:
+                    username: ${{ secrets.docker_hub_username }}
+                    password: ${{ secrets.docker_hub_password }}
+
+            -   name: Build and push native docker image
+                run: |
+                    mvn --batch-mode package jib:build \
+                    -f start-hack-backend/pom.xml \
+                    -Dconfig.deploy.env=${{ inputs.target_env }} -Dconfig.directory=/config \
+                    -Dimage=${{ secrets.docker_hub_username }}/start-hack-backend:${{ env.TAG_NAME }}-${{ inputs.target_env }} \
+                    -Djib.from.image=${{ env.DOCKER_IMAGE }} \
+                    -Djib.to.auth.username=${{ secrets.docker_hub_username }} \
+                    -Djib.to.auth.password=${{ secrets.docker_hub_password }} \
+                    -Djib.container.volumes='/config/' \
+                    -Djib.container.environment=VERSION_TAG_NAME="${{ env.TAG_NAME }}",SPRING_CONFIG_LOCATION="/config/",SPRING_DOCKER_COMPOSE_ENABLED=false \
+                    -Djib.container.entrypoint='sh,-c,java -XX:MinRAMPercentage=60.0 -XX:MaxRAMPercentage=80.0 $ADDITIONAL_JAVA_OPTS -cp @/app/jib-classpath-file @/app/jib-main-class-file $@'

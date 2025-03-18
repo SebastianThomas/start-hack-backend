@@ -1,53 +1,15 @@
 services:
-    {%- if "postgresql" in database_type %}
-    {{project_name | change_case(to="snake")}}_postgresql_db:
-        image: {% if postgis %}postgis/postgis:{{latest_docker_tag(docker_image="postgis/postgis", regex_pattern="^[0-9]+-master$")}}{%- else %}postgres:{{latest_docker_tag(docker_image="postgres")}}{%- endif %}
-        {%- if postgis %}
+    start_hack_postgresql_db:
+        image: postgis/postgis:17-3.5
         labels:
-          org.springframework.boot.service-connection: postgres  # this is needed since spring does not recognize postgis
-        {%- endif %}
+            org.springframework.boot.service-connection: postgres  # this is needed since spring does not recognize postgis
         environment:
-          POSTGRES_PASSWORD: {{project_name | change_case(to="snake")}}
-          POSTGRES_DB: {{project_name | change_case(to="snake")}}
-          POSTGRES_USER: {{project_name | change_case(to="snake")}}
+            POSTGRES_PASSWORD: start_hack
+            POSTGRES_DB: start_hack
+            POSTGRES_USER: start_hack
         ports:
-          - "5432:5432"
+            - "5432:5432"
         volumes:
-          - {{project_name | change_case(to="snake")}}_postgresql_db_data:/var/lib/postgresql/data
-    {%- elif "mysql" in database_type %}
-    {{project_name | change_case(to="snake")}}_mysql_db:
-      image: mysql:{{latest_docker_tag(docker_image="mysql", regex_pattern="^[0-9]+\.[0-9]+$")}}
-      command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8 --collation-server=utf8_general_ci
-      restart: always
-      environment:
-          MYSQL_DATABASE: '{{project_name | change_case(to="snake")}}'
-          MYSQL_USER: '{{project_name | change_case(to="snake")}}'
-          MYSQL_PASSWORD: '{{project_name | change_case(to="snake")}}'
-          MYSQL_ROOT_PASSWORD: '{{project_name | change_case(to="snake")}}'
-      ports:
-          - '3306:3306'
-      volumes:
-          - {{project_name | change_case(to="snake")}}_mysql_db_data:/var/lib/mysql
-    {%- elif "mariadb" in database_type %}
-      {{project_name | change_case(to="snake")}}_mariadb_db:
-      image: mariadb:{{latest_docker_tag(docker_image="mariadb", regex_pattern="^[0-9]+\.[0-9]+$")}}
-      command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8 --collation-server=utf8_general_ci
-      restart: always
-      environment:
-          MYSQL_DATABASE: '{{project_name | change_case(to="snake")}}'
-          MYSQL_USER: '{{project_name | change_case(to="snake")}}'
-          MYSQL_PASSWORD: '{{project_name | change_case(to="snake")}}'
-          MYSQL_ROOT_PASSWORD: '{{project_name | change_case(to="snake")}}'
-      ports:
-          - '3306:3306'
-      volumes:
-          - {{project_name | change_case(to="snake")}}_mariadb_db_data:/var/lib/mysql
-    {%- endif %}
+            - start_hack_postgresql_db_data:/var/lib/postgresql/data
 volumes:
-    {%- if "postgresql" in database_type %}
-    {{project_name | change_case(to="snake")}}_postgresql_db_data:
-    {%- elif "mysql" in database_type %}
-    {{project_name | change_case(to="snake")}}_mysql_db_data:
-    {%- elif "mariadb" in database_type %}
-    {{project_name | change_case(to="snake")}}_mariadb_db_data:
-    {%- endif -%}
+    start_hack_postgresql_db_data:
