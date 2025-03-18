@@ -35,7 +35,6 @@ public class WsBaseConfig {
 
         return JsonMapper.builder()
                 .addModule(javaTimeModule)
-                // ParanamerModule allows using @JsonCreator without needing @JsonProperty
                 .addModule(new ParanamerModule())
                 // Jdk8Module supports Optionals
                 .addModule(new Jdk8Module())

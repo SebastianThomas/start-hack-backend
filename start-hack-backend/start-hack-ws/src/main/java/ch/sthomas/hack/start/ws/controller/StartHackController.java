@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+
 @RestController
 @RequestMapping("/v1")
 public class StartHackController {
@@ -24,7 +26,9 @@ public class StartHackController {
 
     @Operation(summary = "Hello Endpoint")
     @GetMapping(path = "")
-    public String hello() {
-        return "Hello from start-hack WS";
+    public Hello hello() {
+        return new Hello("Hello from start-hack WS", Instant.now());
     }
+
+    public record Hello(String msg, Instant time) {}
 }
