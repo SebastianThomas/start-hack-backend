@@ -1,4 +1,4 @@
-package ch.ws.config;
+package ch.sthomas.hack.start.ws.config;
 
 import org.springframework.boot.SpringBootConfiguration;
 
