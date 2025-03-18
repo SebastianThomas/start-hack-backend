@@ -25,7 +25,7 @@ jobs:
             -   name: Set up JDK
                 uses: actions/setup-java@v4
                 with:
-                    java-version: 24
+                    java-version: 23
                     distribution: 'temurin'
 
             -   name: Create maven central settings.xml
@@ -57,7 +57,7 @@ jobs:
 
             -   name: Set default docker image
                 run: |
-                    echo "DOCKER_IMAGE=eclipse-temurin:24" >> $GITHUB_ENV
+                    echo "DOCKER_IMAGE=eclipse-temurin:23" >> $GITHUB_ENV
 
             -   name: Docker image for build
                 run: |

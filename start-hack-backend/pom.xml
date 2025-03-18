@@ -18,7 +18,7 @@
     <name>Start Hack Backend</name>
 
     <properties>
-        <java.version>24</java.version>
+        <java.version>23</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
