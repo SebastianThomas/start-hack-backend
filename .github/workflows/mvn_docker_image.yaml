@@ -75,8 +75,8 @@ jobs:
                     -f start-hack-backend/start-hack-ws/pom.xml \
                     -Dconfig.deploy.env=dev -Dconfig.directory=/config \
                     -Dimage=${{ secrets.docker_hub_username }}/start-hack-backend:${{ github.ref_name }} \
-                    -Dimage=${{ secrets.docker_hub_username }}/start-hack-backend:latest \
                     -Djib.from.image=${{ env.DOCKER_IMAGE }} \
+                    -Djib.to.tags=latest,${{ github.ref_name }} \
                     -Djib.to.auth.username=${{ secrets.docker_hub_username }} \
                     -Djib.to.auth.password=${{ secrets.docker_hub_password }} \
                     -Djib.container.volumes='/config/' \
