@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 
 import jakarta.servlet.DispatcherType;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -18,8 +19,13 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+
+import javax.crypto.spec.SecretKeySpec;
 
 @Profile("!no-security")
 @Configuration
@@ -28,6 +34,13 @@ import org.springframework.security.web.SecurityFilterChain;
 public class WsSecurityConfig {
 
     private static final String SWAGGER = "SWAGGER";
+
+    @Bean
+    JwtDecoder jwtDecoder(@Value("unused-secret") final String secret) {
+        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(secret.getBytes(), "HmacSHA256"))
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
+    }
 
     @Bean
     SecurityFilterChain swaggerFilterChain(final HttpSecurity http) throws Exception {
