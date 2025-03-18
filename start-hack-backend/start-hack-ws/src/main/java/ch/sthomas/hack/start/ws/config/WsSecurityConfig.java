@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -56,12 +55,12 @@ public class WsSecurityConfig {
                                 customizer
                                         .requestMatchers(HttpMethod.OPTIONS, "/v1/**")
                                         .permitAll()
-                                        .requestMatchers(HttpMethod.GET, "/v1/info")
+                                        .requestMatchers(HttpMethod.GET, "/v1/**")
                                         .permitAll()
-                                        .requestMatchers("/v1/**")
-                                        .authenticated())
-                .oauth2ResourceServer(
-                        resourceServer -> resourceServer.jwt(Customizer.withDefaults()));
+                                        .requestMatchers(HttpMethod.HEAD, "/v1/**")
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.POST, "/v1/**")
+                                        .permitAll());
 
         http.authorizeHttpRequests(
                 customizer ->
