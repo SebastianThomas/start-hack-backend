@@ -61,7 +61,7 @@ jobs:
 
             -   name: Docker image for build
                 run: |
-                    echo "Docker image jor build: $DOCKER_IMAGE"
+                    echo "Docker image jar build: $DOCKER_IMAGE"
 
             -   name: Login to DockerHub
                 uses: docker/login-action@v2

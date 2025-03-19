@@ -1,6 +1,6 @@
 package ch.sthomas.hack.start.ws.controller;
 
-import ch.sthomas.hack.start.service.TodoService;
+import ch.sthomas.hack.start.service.AdminDataService;
 
 import io.swagger.v3.oas.annotations.Operation;
 
@@ -18,9 +18,9 @@ public class StartHackController {
 
     private static final Logger logger = LoggerFactory.getLogger(StartHackController.class);
 
-    private final TodoService todoService;
+    private final AdminDataService todoService;
 
-    public StartHackController(final TodoService todoService) {
+    public StartHackController(final AdminDataService todoService) {
         this.todoService = todoService;
     }
 

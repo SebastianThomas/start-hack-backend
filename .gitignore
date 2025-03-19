@@ -20,3 +20,8 @@
 **/*.log
 **/*.log.*
 **/import
+/start-hack-backend/start-hack-ws/src/main/resources/local/Climate_Precipitation_Data
+/start-hack-backend/start-hack-ws/src/main/resources/local/Gridded_Population_Density_Data
+/start-hack-backend/start-hack-ws/src/main/resources/local/MODIS_Gross_Primary_Production_GPP
+/start-hack-backend/start-hack-ws/src/main/resources/local/Modis_Land_Cover_Data
+/start-hack-backend/start-hack-ws/src/main/resources/local/Streamwater_Line_Road_Network
