@@ -10,7 +10,7 @@ import org.zalando.problem.spring.web.advice.AdviceTrait;
 
 import java.util.NoSuchElementException;
 
-public interface NoSuchElementAdviceTrait extends AdviceTrait {
+public interface NotFoundAdviceTrait extends AdviceTrait {
 
     @ExceptionHandler
     default ResponseEntity<Problem> handleNoSuchElement(
@@ -19,7 +19,7 @@ public interface NoSuchElementAdviceTrait extends AdviceTrait {
     }
 
     @ExceptionHandler
-    default ResponseEntity<Problem> handleNoSuchElement(
+    default ResponseEntity<Problem> handleNoResourceFound(
             final NoResourceFoundException exception, final NativeWebRequest request) {
         return create(Status.NOT_FOUND, exception, request);
     }
