@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.*;
 
 public class ShapefileParser {
@@ -51,7 +52,11 @@ public class ShapefileParser {
                 files.stream()
                         .filter(f -> f.getFileName().toString().endsWith(".shp"))
                         .findFirst()
-                        .orElseThrow(() -> new NoSuchElementException("No .shp file found."));
+                        .orElseThrow(
+                                () ->
+                                        new NoSuchElementException(
+                                                MessageFormat.format(
+                                                        "No .shp file found in {0}", files)));
 
         final var dataStore =
                 (ShapefileDataStore)

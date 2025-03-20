@@ -1,0 +1,217 @@
+package ch.sthomas.hack.start.service.geo;
+
+import static java.util.Objects.requireNonNull;
+
+import ch.sthomas.hack.start.model.feature.BaseFeature;
+import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
+import ch.sthomas.hack.start.service.tif.TifParser;
+import ch.sthomas.hack.start.service.utils.ProcessUtils;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.NotNull;
+
+import org.geotools.api.coverage.grid.GridCoverage;
+import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.grid.GridCoverageFactory;
+import org.geotools.gce.geotiff.GeoTiffWriter;
+import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.awt.image.Raster;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class GridCoverageService {
+
+    private static final Logger logger = LoggerFactory.getLogger(GridCoverageService.class);
+    private static final GridCoverageFactory GRID_COVERAGE_FACTORY = new GridCoverageFactory();
+    private final ObjectMapper objectMapper;
+
+    GridCoverageService(final ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    @Nullable
+    public GridCoverage2D warpToWGS84(final GridCoverage2D gridCoverage) {
+        if (gridCoverage == null) {
+            return null;
+        }
+
+        try {
+            final var sourceFile = write(gridCoverage);
+            final var transformed = warpToWGS84(sourceFile);
+            Files.delete(sourceFile);
+            return transformed;
+        } catch (final IOException ioException) {
+            logger.warn("Could not transform grid coverage", ioException);
+            return gridCoverage;
+        }
+    }
+
+    @Nullable
+    private GridCoverage2D warpToWGS84(final @NotNull Path geoReferencedFile) throws IOException {
+        requireNonNull(geoReferencedFile);
+
+        final var warpedFile = createTempFile("warped-");
+        final var command =
+                List.of(
+                        "gdalwarp",
+                        "-t_srs",
+                        "+proj=longlat +datum=WGS84 +no_defs +axis=enu",
+                        "-overwrite",
+                        geoReferencedFile.toString(),
+                        warpedFile.toString());
+        final var result = ProcessUtils.executeProcess(new ProcessBuilder(command));
+        if (result
+                instanceof final ProcessUtils.ProcessDidNotFinishResult processDidNotFinishResult) {
+            logger.warn("Process didn't finish result: {}", processDidNotFinishResult.stderr());
+            return null;
+        }
+
+        final var warped = read(warpedFile);
+        Files.delete(warpedFile);
+        return warped;
+    }
+
+    public BaseFeatureCollection vectorize(
+            final GridCoverage2D gridCoverage, final boolean simplify) {
+        try {
+            final var contours = contours(gridCoverage);
+            if (simplify) {
+                return simplify(contours);
+            }
+            return contours;
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    public BaseFeatureCollection contours(final GridCoverage2D gridCoverage) throws IOException {
+        final var src = write(gridCoverage);
+        // Don't create the temp file directly - gdal cannot override, only create a new file.
+        final var result = Files.createTempDirectory("contours").resolve("contours.geojson");
+        final var gdal =
+                ProcessUtils.executeProcess(
+                        new ProcessBuilder(
+                                List.of(
+                                        "gdal_polygonize",
+                                        src.toAbsolutePath().toString(), // src
+                                        result.toString(), // dest
+                                        // "-fl", // Levels with params
+                                        // "7 10 12 13 16",
+                                        // "-p", // Polygons
+                                        // "-amin",
+                                        // "MIN_ELEV",
+                                        "-q" // quiet
+                                        )));
+        if (gdal instanceof ProcessUtils.ProcessFinishedResult) {
+            final var gdalResult =
+                    objectMapper.readValue(result.toFile(), BaseFeatureCollection.class);
+            final var landUseFeatures =
+                    gdalResult.getFeatures().stream()
+                            .filter(f -> !List.of(0, 128).contains((int) f.getProperty("DN")))
+                            .map(GridCoverageService::gdalToFeature)
+                            .toList();
+            return new BaseFeatureCollection().setFeatures(landUseFeatures);
+        }
+        throw new IOException("Could not contour file.");
+    }
+
+    private static BaseFeature gdalToFeature(final BaseFeature f) {
+        return new BaseFeature()
+                .setId(UUID.randomUUID().toString())
+                .setProperties(
+                        Map.ofEntries(
+                                Map.entry("landUse", getLandUseFromMinElev(f.getProperty("DN")))))
+                .setType(f.getType())
+                .setGeometry(f.getGeometry());
+    }
+
+    private static String getLandUseFromMinElev(final int minElev) {
+        return switch (minElev) {
+            case 7 -> "Open Shrublands";
+            case 10 -> "Grasslands";
+            case 12 -> "Croplands";
+            case 13 -> "Urban and Built-up Lands";
+            case 16 -> "Barren";
+            default -> throw new IllegalArgumentException("Unknown id: " + minElev);
+        };
+    }
+
+    public static BaseFeatureCollection simplify(final BaseFeatureCollection featureCollection) {
+        return new BaseFeatureCollection()
+                .setFeatures(
+                        featureCollection.getFeatures().stream()
+                                .map(
+                                        f ->
+                                                new BaseFeature()
+                                                        .setId(f.getId())
+                                                        .setProperties(f.getProperties())
+                                                        .setType(f.getType())
+                                                        .setGeometry(
+                                                                simplifyGeometry(f.getGeometry())))
+                                .toList());
+    }
+
+    private static Geometry simplifyGeometry(final Geometry geometry) {
+        return DouglasPeuckerSimplifier.simplify(geometry, 0.01);
+    }
+
+    public static Path write(final @NotNull GridCoverage gridCoverage) throws IOException {
+        final var inputGribFile = createTempFile("grid-coverage");
+        final var writer = new GeoTiffWriter(inputGribFile.toFile());
+        writer.write(gridCoverage, null);
+        logger.trace("Wrote grid coverage to {}.", inputGribFile);
+        return inputGribFile;
+    }
+
+    public static GridCoverage2D read(final @NotNull Path path) throws IOException {
+        return new TifParser(path).parse();
+    }
+
+    public static float[] getValuesArray(final @NotNull GridCoverage gridCoverage) {
+        final var raster = getRaster(gridCoverage);
+        return getValuesArray(raster);
+    }
+
+    public static Raster getRaster(final @NotNull GridCoverage gridCoverage) {
+        return gridCoverage.getRenderedImage().getData();
+    }
+
+    public static float[] getValuesArray(final @NotNull Raster raster) {
+        return raster.getPixels(
+                raster.getMinX(),
+                raster.getMinY(),
+                raster.getWidth(),
+                raster.getHeight(),
+                (float[]) null);
+    }
+
+    public static @NotNull GridCoverage2D withEnvelope(
+            final @NotNull GridCoverage2D gridCoverage,
+            final @NotNull ReferencedEnvelope envelope) {
+        return GRID_COVERAGE_FACTORY.create(
+                gridCoverage.getName(),
+                gridCoverage.getRenderedImage(),
+                envelope,
+                null,
+                null,
+                gridCoverage.getProperties());
+    }
+
+    private static Path createTempFile(final String prefix) throws IOException {
+        return Files.createTempFile(prefix + "_", ".tif");
+    }
+}
