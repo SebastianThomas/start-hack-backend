@@ -43,6 +43,7 @@ public class GeoService {
     public BaseFeature toFeature(final SimpleFeature feature) {
         return new BaseFeature()
                 .setGeometry((Geometry) feature.getDefaultGeometry())
+                .setType("Feature")
                 .setId(feature.getID())
                 .setProperties(
                         feature.getProperties().stream()
