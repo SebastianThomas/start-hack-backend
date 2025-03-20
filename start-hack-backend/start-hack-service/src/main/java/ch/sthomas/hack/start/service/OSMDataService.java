@@ -47,6 +47,7 @@ public class OSMDataService {
                         lines,
                         f ->
                                 f.getProperties().containsKey("waterway")
+                                                && f.getProperty("waterway") != null
                                         || f.getProperties()
                                                 .getOrDefault("natural", "no")
                                                 .equals("water"));
@@ -58,7 +59,9 @@ public class OSMDataService {
 
     private BaseFeatureCollection filterContainingKey(
             final BaseFeatureCollection featureCollection, final String key) {
-        return filterFeatureCollection(featureCollection, f -> f.getProperties().containsKey(key));
+        return filterFeatureCollection(
+                featureCollection,
+                f -> f.getProperties().containsKey(key) && f.getProperty(key) != null);
     }
 
     private BaseFeatureCollection filterFeatureCollection(
