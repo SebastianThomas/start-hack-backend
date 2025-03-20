@@ -106,7 +106,7 @@ public class GridCoverageService {
                 ProcessUtils.executeProcess(
                         new ProcessBuilder(
                                 List.of(
-                                        "gdal_polygonize",
+                                        "gdal_polygonize.py", // In docker container, .py is required
                                         src.toAbsolutePath().toString(), // src
                                         result.toString(), // dest
                                         // "-fl", // Levels with params
