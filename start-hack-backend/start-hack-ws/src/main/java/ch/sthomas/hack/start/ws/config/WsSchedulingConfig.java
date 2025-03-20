@@ -27,17 +27,17 @@ public class WsSchedulingConfig {
         this.osmDataService = osmDataService;
     }
 
-    @Scheduled(initialDelay = 10, timeUnit = TimeUnit.SECONDS)
+    @Scheduled(initialDelay = 2, timeUnit = TimeUnit.SECONDS)
     public void loadRegions() throws IOException {
         adminDataService.loadAndSaveRegions();
     }
 
-    @Scheduled(initialDelay = 20, timeUnit = TimeUnit.SECONDS)
+    @Scheduled(initialDelay = 1, timeUnit = TimeUnit.SECONDS)
     public void loadGrids() {
         modisDataService.loadAndSaveData();
     }
 
-    @Scheduled(initialDelay = 1, timeUnit = TimeUnit.SECONDS)
+    @Scheduled(initialDelay = 2, timeUnit = TimeUnit.SECONDS)
     public void loadOSM() throws IOException {
         osmDataService.loadAndSaveData();
     }

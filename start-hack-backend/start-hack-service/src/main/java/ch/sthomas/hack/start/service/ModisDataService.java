@@ -2,6 +2,8 @@ package ch.sthomas.hack.start.service;
 
 import static ch.sthomas.hack.start.model.product.ModisProduct.*;
 
+import static java.time.ZoneOffset.UTC;
+
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 import ch.sthomas.hack.start.model.points.PointData;
@@ -11,6 +13,7 @@ import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.geotools.api.coverage.PointOutsideCoverageException;
 import org.geotools.api.geometry.Position;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
@@ -27,7 +30,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.time.Year;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
@@ -67,7 +70,7 @@ public class ModisDataService {
         this.climatePrecipitationFolder = Path.of(climatePrecipitationFolder);
         this.gridCoverageService = gridCoverageService;
         this.objectMapper = objectMapper;
-        wgs84 = CRS.decode("4326");
+        wgs84 = CRS.decode("EPSG:4326");
     }
 
     public void loadAndSaveData() {
@@ -100,8 +103,7 @@ public class ModisDataService {
                                     try {
                                         final var filename = productPathFilename.apply(year);
                                         final var productPath = path.resolve(filename);
-                                        return Optional.ofNullable(geoService.readTif(productPath))
-                                                .map(gridCoverageService::warpToWGS84)
+                                        return Optional.ofNullable(geoService.getTif(productPath))
                                                 .map(gridCoverageService.simplifyGrid(product))
                                                 .map(gridCoverageService::vectorize)
                                                 .map(gdalToFeature)
@@ -152,20 +154,39 @@ public class ModisDataService {
                             try {
                                 final var filename = productPathFilename.apply(year);
                                 final var productPath = path.resolve(filename);
-                                return Optional.ofNullable(geoService.readTif(productPath))
-                                        .map(gridCoverageService::warpToWGS84)
-                                        .map(g -> g.evaluate(point))
+                                return Optional.ofNullable(geoService.getTif(productPath))
+                                        .map(
+                                                g -> {
+                                                    try {
+                                                        if (product.invert()) {
+                                                            final var tmp = point.getOrdinate(0);
+                                                            point.setOrdinate(
+                                                                    0, point.getOrdinate(1));
+                                                            point.setOrdinate(1, tmp);
+                                                        }
+                                                        return g.evaluate(point);
+                                                    } catch (
+                                                            final PointOutsideCoverageException e) {
+                                                        logger.warn(
+                                                                "Could not load point {}",
+                                                                point,
+                                                                e);
+                                                        return Optional.empty();
+                                                    }
+                                                })
                                         .map(
                                                 d ->
                                                         new PointData<>(
-                                                                Instant.from(Year.of(year)),
-                                                                product,
-                                                                d));
+                                                                instantFromYear(year), product, d));
                             } catch (IOException e) {
                                 return Optional.empty();
                             }
                         })
                 .flatMap(Optional::stream);
+    }
+
+    private Instant instantFromYear(final int year) {
+        return Instant.from(ZonedDateTime.of(year, 1, 1, 0, 0, 0, 0, UTC));
     }
 
     private UnaryOperator<BaseFeatureCollection> gdalToFeature(final ModisProduct product) {

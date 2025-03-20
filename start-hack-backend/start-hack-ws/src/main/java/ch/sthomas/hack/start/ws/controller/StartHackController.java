@@ -45,7 +45,7 @@ public class StartHackController {
     @Operation(summary = "Get Data for a Point")
     @GetMapping(path = "/point-data")
     public List<PointData<Object>> getPointData(
-            @RequestParam @Valid final int x, @RequestParam @Valid final int y) {
+            @RequestParam @Valid final double x, @RequestParam @Valid final double y) {
         return pointRequestService.getPointData(new Coordinate(x, y));
     }
 

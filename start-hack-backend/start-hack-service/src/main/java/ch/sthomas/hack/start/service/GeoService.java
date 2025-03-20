@@ -3,10 +3,13 @@ package ch.sthomas.hack.start.service;
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 import ch.sthomas.hack.start.model.util.MapCollectors;
+import ch.sthomas.hack.start.service.geo.GridCoverageService;
 import ch.sthomas.hack.start.service.geo.shapefile.ShapefileParser;
 import ch.sthomas.hack.start.service.geo.tif.TifParser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.annotation.Nullable;
 
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -18,14 +21,21 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GeoService {
 
     private final ObjectMapper objectMapper;
 
-    public GeoService(final ObjectMapper objectMapper) {
+    private final Map<Path, GridCoverage2D> tifCache;
+    private final GridCoverageService gridCoverageService;
+
+    public GeoService(final ObjectMapper objectMapper, GridCoverageService gridCoverageService) {
         this.objectMapper = objectMapper;
+        this.tifCache = new ConcurrentHashMap<>();
+        this.gridCoverageService = gridCoverageService;
     }
 
     public BaseFeatureCollection getFeatureCollection(final Path path) throws IOException {
@@ -37,8 +47,19 @@ public class GeoService {
         return new ShapefileParser(path, datasetName).loadData();
     }
 
-    public GridCoverage2D readTif(final Path path) throws IOException {
+    private GridCoverage2D readTif(final Path path) throws IOException {
         return new TifParser(path).parse();
+    }
+
+    @Nullable
+    public GridCoverage2D getTif(final Path path) throws IOException {
+        if (tifCache.containsKey(path)) {
+            return tifCache.get(path);
+        }
+        return Optional.ofNullable(readTif(path))
+                .map(gridCoverageService::warpToWGS84)
+                .map(gc -> tifCache.put(path, gc))
+                .orElse(null);
     }
 
     public BaseFeature toFeature(final SimpleFeature feature) {
