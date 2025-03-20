@@ -28,7 +28,7 @@ public class WsSchedulingConfig {
     }
 
     @Scheduled(initialDelay = 2, timeUnit = TimeUnit.SECONDS)
-    public void loadLCT() throws IOException {
+    public void loadLCT() {
         modisDataService.loadAndSaveData();
     }
 }

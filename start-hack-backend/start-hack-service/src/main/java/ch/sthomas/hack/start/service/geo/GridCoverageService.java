@@ -29,7 +29,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -85,10 +84,14 @@ public class GridCoverageService {
         return warped;
     }
 
+    public BaseFeatureCollection vectorize(final GridCoverage2D gridCoverage) {
+        return vectorize(gridCoverage, false);
+    }
+
     public BaseFeatureCollection vectorize(
             final GridCoverage2D gridCoverage, final boolean simplify) {
         try {
-            final var contours = contours(gridCoverage);
+            final var contours = polygons(gridCoverage);
             if (simplify) {
                 return simplify(contours);
             }
@@ -98,7 +101,7 @@ public class GridCoverageService {
         }
     }
 
-    public BaseFeatureCollection contours(final GridCoverage2D gridCoverage) throws IOException {
+    public BaseFeatureCollection polygons(final GridCoverage2D gridCoverage) throws IOException {
         final var src = write(gridCoverage);
         // Don't create the temp file directly - gdal cannot override, only create a new file.
         final var result = Files.createTempDirectory("contours").resolve("contours.geojson");
@@ -106,7 +109,8 @@ public class GridCoverageService {
                 ProcessUtils.executeProcess(
                         new ProcessBuilder(
                                 List.of(
-                                        "gdal_polygonize.py", // In docker container, .py is required
+                                        // In docker container, .py is required
+                                        "gdal_polygonize.py",
                                         src.toAbsolutePath().toString(), // src
                                         result.toString(), // dest
                                         // "-fl", // Levels with params
@@ -114,17 +118,17 @@ public class GridCoverageService {
                                         // "-p", // Polygons
                                         // "-amin",
                                         // "MIN_ELEV",
+                                        "DN",
                                         "-q" // quiet
                                         )));
         if (gdal instanceof ProcessUtils.ProcessFinishedResult) {
             final var gdalResult =
                     objectMapper.readValue(result.toFile(), BaseFeatureCollection.class);
-            final var landUseFeatures =
-                    gdalResult.getFeatures().stream()
-                            .filter(f -> !List.of(0, 128).contains((int) f.getProperty("DN")))
-                            .map(GridCoverageService::gdalToFeature)
-                            .toList();
-            return new BaseFeatureCollection().setFeatures(landUseFeatures);
+            return new BaseFeatureCollection()
+                    .setFeatures(
+                            gdalResult.getFeatures().stream()
+                                    .map(GridCoverageService::gdalToFeature)
+                                    .toList());
         }
         throw new IOException("Could not contour file.");
     }
@@ -132,22 +136,9 @@ public class GridCoverageService {
     private static BaseFeature gdalToFeature(final BaseFeature f) {
         return new BaseFeature()
                 .setId(UUID.randomUUID().toString())
-                .setProperties(
-                        Map.ofEntries(
-                                Map.entry("landUse", getLandUseFromMinElev(f.getProperty("DN")))))
+                .setProperties(f.getProperties())
                 .setType(f.getType())
                 .setGeometry(f.getGeometry());
-    }
-
-    private static String getLandUseFromMinElev(final int minElev) {
-        return switch (minElev) {
-            case 7 -> "Open Shrublands";
-            case 10 -> "Grasslands";
-            case 12 -> "Croplands";
-            case 13 -> "Urban and Built-up Lands";
-            case 16 -> "Barren";
-            default -> throw new IllegalArgumentException("Unknown id: " + minElev);
-        };
     }
 
     public static BaseFeatureCollection simplify(final BaseFeatureCollection featureCollection) {

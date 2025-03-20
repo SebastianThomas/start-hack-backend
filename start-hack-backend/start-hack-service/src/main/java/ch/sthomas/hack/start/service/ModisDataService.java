@@ -2,6 +2,7 @@ package ch.sthomas.hack.start.service;
 
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
+import ch.sthomas.hack.start.model.product.ModisProduct;
 import ch.sthomas.hack.start.model.util.MapCollectors;
 import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
@@ -18,12 +19,14 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
 @Service
 public class ModisDataService {
     private static final Logger logger = LoggerFactory.getLogger(ModisDataService.class);
     private final Path modisLctFolder;
+    private final Path modisGPFolder;
     private final Path outputFolder;
     private final GeoService geoService;
     private final GridCoverageService gridCoverageService;
@@ -31,6 +34,7 @@ public class ModisDataService {
 
     public ModisDataService(
             @Value("${ch.sthomas.hack.start.service.modis-lct.folder}") final String modisLctFolder,
+            @Value("${ch.sthomas.hack.start.service.modis-gp.folder}") final String modisGPFolder,
             @Value("${ch.sthomas.hack.start.public.folder}") final String outputFolder,
             final GeoService geoService,
             final GridCoverageService gridCoverageService,
@@ -38,53 +42,53 @@ public class ModisDataService {
         this.geoService = geoService;
         this.outputFolder = Paths.get(outputFolder);
         this.modisLctFolder = Path.of(modisLctFolder);
+        this.modisGPFolder = Path.of(modisGPFolder);
         this.gridCoverageService = gridCoverageService;
         this.objectMapper = objectMapper;
     }
 
     public void loadAndSaveData() {
+        loadAndSaveData(ModisProduct.LCT);
+        loadAndSaveData(ModisProduct.GP);
+    }
+
+    public void loadAndSaveData(final ModisProduct product) {
+        final var path =
+                switch (product) {
+                    case LCT -> modisLctFolder;
+                    case GP -> modisGPFolder;
+                };
+        final var productPathFilenamePart =
+                switch (product) {
+                    case LCT -> "LCT.tif";
+                    case GP -> "_GP.tif";
+                };
+        final var gdalToFeature = gdalToFeature(product);
         final var years =
                 IntStream.range(2010, 2023)
-                        .mapToObj(
+                        .<Optional<Map.Entry<Integer, BaseFeatureCollection>>>mapToObj(
                                 year -> {
                                     try {
-                                        return Map.entry(
-                                                year,
-                                                Optional.ofNullable(
-                                                                geoService.readTif(
-                                                                        modisLctFolder.resolve(
-                                                                                year + "LCT.tif")))
-                                                        .map(gridCoverageService::warpToWGS84)
-                                                        .map(
-                                                                g ->
-                                                                        gridCoverageService
-                                                                                .vectorize(
-                                                                                        g, false))
-                                                        .map(
-                                                                collection ->
-                                                                        new BaseFeatureCollection()
-                                                                                .setFeatures(
-                                                                                        collection
-                                                                                                .getFeatures()
-                                                                                                .stream()
-                                                                                                .map(
-                                                                                                        this
-                                                                                                                ::invertCoordsAndFilterSmall)
-                                                                                                .filter(
-                                                                                                        Objects
-                                                                                                                ::nonNull)
-                                                                                                .toList())));
+                                        final var filename = year + productPathFilenamePart;
+                                        final var productPath = path.resolve(filename);
+                                        return Optional.ofNullable(geoService.readTif(productPath))
+                                                .map(gridCoverageService::warpToWGS84)
+                                                .map(gridCoverageService::vectorize)
+                                                .map(gdalToFeature)
+                                                .map(this::invertCoords)
+                                                .map(features -> Map.entry(year, features));
                                     } catch (final IOException e) {
                                         logger.info("Could not read Tif file and contour", e);
-                                        return null;
+                                        return Optional.empty();
                                     }
                                 })
-                        .filter(Objects::nonNull)
+                        .flatMap(Optional::stream)
                         .collect(MapCollectors.entriesToMap());
         years.forEach(
                 (year, vectors) -> {
-                    final var outputFile =
-                            outputFolder.resolve("lct-" + year + ".geojson").toFile();
+                    final var outputFileName =
+                            product.name().toLowerCase() + "-" + year + ".geojson";
+                    final var outputFile = outputFolder.resolve(outputFileName).toFile();
                     outputFile.getParentFile().mkdirs();
                     try {
                         objectMapper.writeValue(outputFile, vectors);
@@ -93,6 +97,19 @@ public class ModisDataService {
                         logger.info(e.getMessage());
                     }
                 });
+    }
+
+    private UnaryOperator<BaseFeatureCollection> gdalToFeature(final ModisProduct product) {
+        return features -> new BaseFeatureCollection().setFeatures(product.mapAndFilter(features));
+    }
+
+    private BaseFeatureCollection invertCoords(final BaseFeatureCollection featureCollection) {
+        return new BaseFeatureCollection()
+                .setFeatures(
+                        featureCollection.getFeatures().stream()
+                                .map(this::invertCoordsAndFilterSmall)
+                                .filter(Objects::nonNull)
+                                .toList());
     }
 
     private BaseFeature invertCoordsAndFilterSmall(final BaseFeature flipped) {
@@ -109,7 +126,7 @@ public class ModisDataService {
 
     private Geometry invertCoordsAndFilterSmall(final Geometry geometry) {
         return switch (geometry) {
-            case MultiPolygon p ->
+            case final MultiPolygon p ->
                     new MultiPolygon(
                             IntStream.range(0, p.getNumGeometries())
                                     .mapToObj(i -> (Polygon) p.getGeometryN(i))
