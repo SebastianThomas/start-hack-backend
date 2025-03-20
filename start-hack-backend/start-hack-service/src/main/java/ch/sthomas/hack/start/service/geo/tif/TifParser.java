@@ -40,7 +40,10 @@ public class TifParser {
                                                         path.toAbsolutePath().toString())))
                                 .stdout());
         try {
-            final var crs = CRS.parseWKT(wkt);
+            final var crs =
+                    wkt.isEmpty() || wkt.contains("GEOGCS[\"WGS 84\"")
+                            ? CRS.decode("EPSG:4326")
+                            : CRS.parseWKT(wkt);
             final var hints = new Hints(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM, crs);
             final var reader = new GeoTiffReader(path.toFile(), hints);
             return reader.read(null);
