@@ -32,7 +32,8 @@ public class GeoService {
     private final Map<Path, GridCoverage2D> tifCache;
     private final GridCoverageService gridCoverageService;
 
-    public GeoService(final ObjectMapper objectMapper, GridCoverageService gridCoverageService) {
+    public GeoService(
+            final ObjectMapper objectMapper, final GridCoverageService gridCoverageService) {
         this.objectMapper = objectMapper;
         this.tifCache = new ConcurrentHashMap<>();
         this.gridCoverageService = gridCoverageService;

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import ch.sthomas.hack.start.service.AdminDataService;
 import ch.sthomas.hack.start.service.GeoService;
+import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
 import jakarta.persistence.EntityManagerFactory;
 
@@ -16,12 +17,19 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.IOException;
 
-@SpringBootTest(classes = {AdminDataService.class, GeoService.class, WsBaseConfig.class})
+@SpringBootTest(
+        classes = {
+            AdminDataService.class,
+            GeoService.class,
+            GridCoverageService.class,
+            WsBaseConfig.class
+        })
 @ActiveProfiles("test")
 class AdminDataServiceTest {
     @MockitoBean private EntityManagerFactory entityManagerFactory;
     @Autowired private AdminDataService adminDataService;
     @Autowired private GeoService geoService;
+    @Autowired private GridCoverageService gridCoverageService;
 
     @Test
     void testDistricts() throws IOException {
