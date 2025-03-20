@@ -15,7 +15,8 @@ public enum ModisProduct {
             f -> Map.ofEntries(Map.entry("landUse", getLandUseFromMinElev(f.getProperty("DN"))))),
     GP(true, f -> true, f -> Map.of("gp", f.getProperty("DN"))),
     GP_SIMPLIFIED(true, f -> true, f -> Map.of("gp-simplified", f.getProperty("DN"))),
-    POPULATION_DENSITY(false, f -> true, f -> Map.of("pop_dens", f.getProperty("DN"))), // TODO
+    POPULATION_DENSITY(false, f -> true, f -> Map.of("pop_dens", f.getProperty("DN"))),
+    CLIMATE_PRECIPITATION(false, f -> true, f -> Map.of("climate_precip", f.getProperty("DN"))),
     ;
 
     private final boolean invert;

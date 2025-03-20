@@ -3,8 +3,8 @@ package ch.sthomas.hack.start.service;
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 import ch.sthomas.hack.start.model.util.MapCollectors;
-import ch.sthomas.hack.start.service.shapefile.ShapefileParser;
-import ch.sthomas.hack.start.service.tif.TifParser;
+import ch.sthomas.hack.start.service.geo.shapefile.ShapefileParser;
+import ch.sthomas.hack.start.service.geo.tif.TifParser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

@@ -5,7 +5,7 @@ import static java.util.Objects.requireNonNull;
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 import ch.sthomas.hack.start.model.product.ModisProduct;
-import ch.sthomas.hack.start.service.tif.TifParser;
+import ch.sthomas.hack.start.service.geo.tif.TifParser;
 import ch.sthomas.hack.start.service.utils.ProcessUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,7 +70,7 @@ public class GridCoverageService {
                 List.of(
                         "gdalwarp",
                         "-t_srs",
-                        "+proj=longlat +datum=WGS84 +no_defs +axis=enu",
+                        "EPSG:4326",
                         "-overwrite",
                         geoReferencedFile.toString(),
                         warpedFile.toString());

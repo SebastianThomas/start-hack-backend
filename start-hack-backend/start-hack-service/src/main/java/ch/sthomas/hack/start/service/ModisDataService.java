@@ -31,6 +31,7 @@ public class ModisDataService {
     private final Path modisLctFolder;
     private final Path modisGPFolder;
     private final Path populationDensityFolder;
+    private final Path climatePrecipitationFolder;
     private final Path outputFolder;
     private final GeoService geoService;
     private final GridCoverageService gridCoverageService;
@@ -41,6 +42,8 @@ public class ModisDataService {
             @Value("${ch.sthomas.hack.start.service.modis-gp.folder}") final String modisGPFolder,
             @Value("${ch.sthomas.hack.start.service.population-density.folder}")
                     final String populationDensityFolder,
+            @Value("${ch.sthomas.hack.start.service.climate-precipitation.folder}")
+                    final String climatePrecipitationFolder,
             @Value("${ch.sthomas.hack.start.public.folder}") final String outputFolder,
             final GeoService geoService,
             final GridCoverageService gridCoverageService,
@@ -50,15 +53,15 @@ public class ModisDataService {
         this.modisLctFolder = Path.of(modisLctFolder);
         this.modisGPFolder = Path.of(modisGPFolder);
         this.populationDensityFolder = Path.of(populationDensityFolder);
+        this.climatePrecipitationFolder = Path.of(climatePrecipitationFolder);
         this.gridCoverageService = gridCoverageService;
         this.objectMapper = objectMapper;
     }
 
     public void loadAndSaveData() {
-        loadAndSaveData(LCT);
-        loadAndSaveData(GP);
-        loadAndSaveData(GP_SIMPLIFIED);
-        loadAndSaveData(POPULATION_DENSITY);
+        for (final var value : values()) {
+            loadAndSaveData(value);
+        }
     }
 
     public void loadAndSaveData(final ModisProduct product) {
@@ -67,6 +70,7 @@ public class ModisDataService {
                     case LCT -> modisLctFolder;
                     case GP, GP_SIMPLIFIED -> modisGPFolder;
                     case POPULATION_DENSITY -> populationDensityFolder;
+                    case CLIMATE_PRECIPITATION -> climatePrecipitationFolder;
                 };
         final IntFunction<String> productPathFilename =
                 year ->
@@ -74,6 +78,7 @@ public class ModisDataService {
                             case LCT -> year + "LCT.tif";
                             case GP, GP_SIMPLIFIED -> year + "_GP.tif";
                             case POPULATION_DENSITY -> "Assaba_Pop_" + year + ".tif";
+                            case CLIMATE_PRECIPITATION -> year + "R.tif";
                         };
         final var gdalToFeature = gdalToFeature(product);
         final var years =
