@@ -59,7 +59,11 @@ public class GeoService {
         }
         return Optional.ofNullable(readTif(path))
                 .map(gridCoverageService::warpToWGS84)
-                .map(gc -> tifCache.put(path, gc))
+                .map(
+                        gc -> {
+                            tifCache.put(path, gc);
+                            return gc;
+                        })
                 .orElse(null);
     }
 

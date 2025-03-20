@@ -49,6 +49,10 @@ public class GridCoverageService {
         if (gridCoverage == null) {
             return null;
         }
+        if (gridCoverage.getCoordinateReferenceSystem2D().getName().equals("EPSG:4326")) {
+            logger.info("Already in WGS84, skipping transform.");
+            return gridCoverage;
+        }
 
         try {
             final var sourceFile = write(gridCoverage);

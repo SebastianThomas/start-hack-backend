@@ -75,6 +75,7 @@ public class ModisDataService {
 
     public void loadAndSaveData() {
         for (final var value : values()) {
+            logger.info("Loading data for product {}", value);
             loadAndSaveData(value);
         }
     }
@@ -116,6 +117,7 @@ public class ModisDataService {
                                 })
                         .flatMap(Optional::stream)
                         .collect(MapCollectors.entriesToMap());
+        logger.info("Saving data for product {} at years {}", product, years.keySet());
         years.forEach(
                 (year, vectors) -> {
                     final var outputFileName =
