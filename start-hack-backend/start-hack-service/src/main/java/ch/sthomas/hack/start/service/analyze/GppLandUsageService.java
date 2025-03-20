@@ -157,18 +157,18 @@ public class GppLandUsageService {
 
         final var sampleModel =
                 new ComponentSampleModel(
-                        DataBuffer.TYPE_INT, width, height, 1, width, new int[] {0});
+                        DataBuffer.TYPE_INT, height, width, 1, height, new int[] {0});
         final var dataBuffer = new DataBufferInt(new int[width * height], width * height);
         final var raster = Raster.createWritableRaster(sampleModel, dataBuffer, null);
 
         for (var i = 0; i < width; i++) {
             for (var j = 0; j < height; j++) {
-                final var y = minX + (width - i) * gridSizeDegrees;
-                final var x = minY + j * gridSizeDegrees;
+                final var x = minX + (width - i) * gridSizeDegrees;
+                final var y = minY + j * gridSizeDegrees;
                 final var coord = new Position2D(x, y);
 
                 final var value = eval.applyAsInt(coord);
-                raster.setSample(i, j, 0, value);
+                raster.setSample(j, i, 0, value);
             }
         }
 
