@@ -4,12 +4,18 @@ import static ch.sthomas.hack.start.model.product.ModisProduct.*;
 
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
+import ch.sthomas.hack.start.model.points.PointData;
 import ch.sthomas.hack.start.model.product.ModisProduct;
 import ch.sthomas.hack.start.model.util.MapCollectors;
 import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.geotools.api.geometry.Position;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.geometry.Position2D;
+import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.*;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
@@ -20,10 +26,13 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.Year;
 import java.util.*;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Service
 public class ModisDataService {
@@ -36,6 +45,7 @@ public class ModisDataService {
     private final GeoService geoService;
     private final GridCoverageService gridCoverageService;
     private final ObjectMapper objectMapper;
+    private final CoordinateReferenceSystem wgs84;
 
     public ModisDataService(
             @Value("${ch.sthomas.hack.start.service.modis-lct.folder}") final String modisLctFolder,
@@ -47,7 +57,8 @@ public class ModisDataService {
             @Value("${ch.sthomas.hack.start.public.folder}") final String outputFolder,
             final GeoService geoService,
             final GridCoverageService gridCoverageService,
-            final ObjectMapper objectMapper) {
+            final ObjectMapper objectMapper)
+            throws FactoryException {
         this.geoService = geoService;
         this.outputFolder = Paths.get(outputFolder);
         this.modisLctFolder = Path.of(modisLctFolder);
@@ -56,6 +67,7 @@ public class ModisDataService {
         this.climatePrecipitationFolder = Path.of(climatePrecipitationFolder);
         this.gridCoverageService = gridCoverageService;
         this.objectMapper = objectMapper;
+        wgs84 = CRS.decode("4326");
     }
 
     public void loadAndSaveData() {
@@ -115,6 +127,45 @@ public class ModisDataService {
                         logger.info(e.getMessage());
                     }
                 });
+    }
+
+    private Stream<PointData<Object>> getPointData(
+            final ModisProduct product, final Position point) {
+        final var path =
+                switch (product) {
+                    case LCT -> modisLctFolder;
+                    case GP, GP_SIMPLIFIED -> modisGPFolder;
+                    case POPULATION_DENSITY -> populationDensityFolder;
+                    case CLIMATE_PRECIPITATION -> climatePrecipitationFolder;
+                };
+        final IntFunction<String> productPathFilename =
+                year ->
+                        switch (product) {
+                            case LCT -> year + "LCT.tif";
+                            case GP, GP_SIMPLIFIED -> year + "_GP.tif";
+                            case POPULATION_DENSITY -> "Assaba_Pop_" + year + ".tif";
+                            case CLIMATE_PRECIPITATION -> year + "R.tif";
+                        };
+        return IntStream.range(2000, 2024)
+                .<Optional<PointData<Object>>>mapToObj(
+                        year -> {
+                            try {
+                                final var filename = productPathFilename.apply(year);
+                                final var productPath = path.resolve(filename);
+                                return Optional.ofNullable(geoService.readTif(productPath))
+                                        .map(gridCoverageService::warpToWGS84)
+                                        .map(g -> g.evaluate(point))
+                                        .map(
+                                                d ->
+                                                        new PointData<>(
+                                                                Instant.from(Year.of(year)),
+                                                                product,
+                                                                d));
+                            } catch (IOException e) {
+                                return Optional.empty();
+                            }
+                        })
+                .flatMap(Optional::stream);
     }
 
     private UnaryOperator<BaseFeatureCollection> gdalToFeature(final ModisProduct product) {
@@ -188,5 +239,11 @@ public class ModisDataService {
             coord.y = temp;
         }
         return new LinearRing(new PackedCoordinateSequence.Double(coords), ring.getFactory());
+    }
+
+    public List<PointData<Object>> getPointData(final Coordinate coordinate) {
+        return Arrays.stream(values())
+                .flatMap(p -> getPointData(p, new Position2D(wgs84, coordinate.x, coordinate.y)))
+                .toList();
     }
 }
