@@ -21,7 +21,7 @@ public enum ModisProduct {
             f -> Map.of("gp-simplified", f.getProperty("DN")),
             ob -> ((int[]) ob)[0]),
     POPULATION_DENSITY(
-            false, f -> true, f -> Map.of("pop_dens", f.getProperty("DN")), Function.identity()),
+            true, f -> true, f -> Map.of("pop_dens", f.getProperty("DN")), Function.identity()),
     CLIMATE_PRECIPITATION(
             false,
             f -> true,
