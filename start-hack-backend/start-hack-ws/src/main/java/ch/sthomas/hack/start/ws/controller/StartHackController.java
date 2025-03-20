@@ -12,10 +12,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,6 +41,7 @@ public class StartHackController {
 
     @Operation(summary = "Get Data for a Point")
     @GetMapping(path = "/point-data")
+    @CrossOrigin
     public List<PointData<Object>> getPointData(
             @RequestParam @Valid final double x, @RequestParam @Valid final double y) {
         return pointRequestService.getPointData(new Coordinate(x, y));
