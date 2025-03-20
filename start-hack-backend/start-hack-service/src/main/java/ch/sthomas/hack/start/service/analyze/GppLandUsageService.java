@@ -71,7 +71,7 @@ public class GppLandUsageService {
 
     public Map<Integer, GppLandRankingFeatureCollection> getGppLandUsageRanking() {
         final var landUsagePerYearRaster = modisDataService.loadYearsRaster(LCT);
-        final var gppPerYearRaster = modisDataService.loadYearsRaster(ModisProduct.GP);
+        final var gppPerYearRaster = modisDataService.loadYearsRaster(GP);
         return modisDataService
                 .dataYearsStream()
                 .mapToObj(
@@ -163,8 +163,8 @@ public class GppLandUsageService {
 
         for (var i = 0; i < width; i++) {
             for (var j = 0; j < height; j++) {
-                final var x = minX + i * gridSizeDegrees;
-                final var y = minY + j * gridSizeDegrees;
+                final var y = minX + (width - i) * gridSizeDegrees;
+                final var x = minY + j * gridSizeDegrees;
                 final var coord = new Position2D(x, y);
 
                 final var value = eval.applyAsInt(coord);
