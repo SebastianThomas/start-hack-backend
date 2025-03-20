@@ -119,11 +119,6 @@ public class GridCoverageService {
                                         "gdal_polygonize.py",
                                         src.toAbsolutePath().toString(), // src
                                         result.toString(), // dest
-                                        // "-fl", // Levels with params
-                                        // "7 10 12 13 16",
-                                        // "-p", // Polygons
-                                        // "-amin",
-                                        // "MIN_ELEV",
                                         "DN",
                                         "-q" // quiet
                                         )));

@@ -12,24 +12,37 @@ public enum ModisProduct {
     LCT(
             true,
             f -> !List.of(0, 128).contains((int) f.getProperty("DN")),
-            f -> Map.ofEntries(Map.entry("landUse", getLandUseFromMinElev(f.getProperty("DN"))))),
-    GP(true, f -> true, f -> Map.of("gp", f.getProperty("DN"))),
-    GP_SIMPLIFIED(true, f -> true, f -> Map.of("gp-simplified", f.getProperty("DN"))),
-    POPULATION_DENSITY(false, f -> true, f -> Map.of("pop_dens", f.getProperty("DN"))),
-    CLIMATE_PRECIPITATION(false, f -> true, f -> Map.of("climate_precip", f.getProperty("DN"))),
+            f -> Map.ofEntries(Map.entry("landUse", getLandUseFromKey(f.getProperty("DN")))),
+            ob -> (int) ((byte[]) ob)[0]),
+    GP(true, f -> true, f -> Map.of("gp", f.getProperty("DN")), ob -> ((int[]) ob)[0]),
+    GP_SIMPLIFIED(
+            true,
+            f -> true,
+            f -> Map.of("gp-simplified", f.getProperty("DN")),
+            ob -> ((int[]) ob)[0]),
+    POPULATION_DENSITY(
+            false, f -> true, f -> Map.of("pop_dens", f.getProperty("DN")), Function.identity()),
+    CLIMATE_PRECIPITATION(
+            false,
+            f -> true,
+            f -> Map.of("climate_precip", f.getProperty("DN")),
+            Function.identity()),
     ;
 
     private final boolean invert;
     private final Predicate<BaseFeature> include;
     private final Function<BaseFeature, Map<String, Object>> properties;
+    private final Function<Object, ?> mapPointEval;
 
-    ModisProduct(
-            boolean invert,
+    <T> ModisProduct(
+            final boolean invert,
             final Predicate<BaseFeature> include,
-            final Function<BaseFeature, Map<String, Object>> properties) {
+            final Function<BaseFeature, Map<String, Object>> properties,
+            final Function<Object, T> mapPointEval) {
         this.invert = invert;
         this.include = include;
         this.properties = properties;
+        this.mapPointEval = mapPointEval;
     }
 
     public Predicate<BaseFeature> include() {
@@ -53,7 +66,7 @@ public enum ModisProduct {
                 .toList();
     }
 
-    private static String getLandUseFromMinElev(final int minElev) {
+    public static String getLandUseFromKey(final int minElev) {
         return switch (minElev) {
             case 7 -> "Open Shrublands";
             case 10 -> "Grasslands";
@@ -70,5 +83,9 @@ public enum ModisProduct {
 
     public boolean simplify() {
         return this == GP_SIMPLIFIED;
+    }
+
+    public <T> Function<Object, T> mapPointEval() {
+        return (Function<Object, T>) mapPointEval;
     }
 }

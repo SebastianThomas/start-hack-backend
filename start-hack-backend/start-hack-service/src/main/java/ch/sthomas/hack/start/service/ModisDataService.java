@@ -17,6 +17,7 @@ import org.geotools.api.coverage.PointOutsideCoverageException;
 import org.geotools.api.geometry.Position;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.geometry.Position2D;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.*;
@@ -80,43 +81,75 @@ public class ModisDataService {
         }
     }
 
-    public void loadAndSaveData(final ModisProduct product) {
-        final var path =
+    private Path getPath(final ModisProduct product) {
+        return switch (product) {
+            case LCT -> modisLctFolder;
+            case GP, GP_SIMPLIFIED -> modisGPFolder;
+            case POPULATION_DENSITY -> populationDensityFolder;
+            case CLIMATE_PRECIPITATION -> climatePrecipitationFolder;
+        };
+    }
+
+    private IntFunction<String> productPathFilename(final ModisProduct product) {
+        return year ->
                 switch (product) {
-                    case LCT -> modisLctFolder;
-                    case GP, GP_SIMPLIFIED -> modisGPFolder;
-                    case POPULATION_DENSITY -> populationDensityFolder;
-                    case CLIMATE_PRECIPITATION -> climatePrecipitationFolder;
+                    case LCT -> year + "LCT.tif";
+                    case GP, GP_SIMPLIFIED -> year + "_GP.tif";
+                    case POPULATION_DENSITY -> "Assaba_Pop_" + year + ".tif";
+                    case CLIMATE_PRECIPITATION -> year + "R.tif";
                 };
-        final IntFunction<String> productPathFilename =
-                year ->
-                        switch (product) {
-                            case LCT -> year + "LCT.tif";
-                            case GP, GP_SIMPLIFIED -> year + "_GP.tif";
-                            case POPULATION_DENSITY -> "Assaba_Pop_" + year + ".tif";
-                            case CLIMATE_PRECIPITATION -> year + "R.tif";
-                        };
+    }
+
+    public IntStream dataYearsStream() {
+        return IntStream.range(2000, 2024);
+    }
+
+    public Map<Integer, GridCoverage2D> loadYearsRaster(final ModisProduct product) {
+        final var path = getPath(product);
+        final var productPathFilename = productPathFilename(product);
+        return dataYearsStream()
+                .<Optional<Map.Entry<Integer, GridCoverage2D>>>mapToObj(
+                        year -> {
+                            try {
+                                final var filename = productPathFilename.apply(year);
+                                final var productPath = path.resolve(filename);
+                                return Optional.ofNullable(geoService.getTif(productPath))
+                                        .map(t -> Map.entry(year, t));
+                            } catch (final IOException e) {
+                                return Optional.empty();
+                            }
+                        })
+                .flatMap(Optional::stream)
+                .collect(MapCollectors.entriesToMap());
+    }
+
+    public Map<Integer, BaseFeatureCollection> loadYears(final ModisProduct product) {
+        final var path = getPath(product);
+        final var productPathFilename = productPathFilename(product);
         final var gdalToFeature = gdalToFeature(product);
-        final var years =
-                IntStream.range(2000, 2024)
-                        .<Optional<Map.Entry<Integer, BaseFeatureCollection>>>mapToObj(
-                                year -> {
-                                    try {
-                                        final var filename = productPathFilename.apply(year);
-                                        final var productPath = path.resolve(filename);
-                                        return Optional.ofNullable(geoService.getTif(productPath))
-                                                .map(gridCoverageService.simplifyGrid(product))
-                                                .map(gridCoverageService::vectorize)
-                                                .map(gdalToFeature)
-                                                .map(f -> product.invert() ? invertCoords(f) : f)
-                                                .map(features -> Map.entry(year, features));
-                                    } catch (final IOException e) {
-                                        logger.info("Could not read Tif file and contour", e);
-                                        return Optional.empty();
-                                    }
-                                })
-                        .flatMap(Optional::stream)
-                        .collect(MapCollectors.entriesToMap());
+        return dataYearsStream()
+                .<Optional<Map.Entry<Integer, BaseFeatureCollection>>>mapToObj(
+                        year -> {
+                            try {
+                                final var filename = productPathFilename.apply(year);
+                                final var productPath = path.resolve(filename);
+                                return Optional.ofNullable(geoService.getTif(productPath))
+                                        .map(gridCoverageService.simplifyGrid(product))
+                                        .map(gridCoverageService::vectorize)
+                                        .map(gdalToFeature)
+                                        .map(f -> product.invert() ? invertCoords(f) : f)
+                                        .map(features -> Map.entry(year, features));
+                            } catch (final IOException e) {
+                                logger.info("Could not read Tif file and contour", e);
+                                return Optional.empty();
+                            }
+                        })
+                .flatMap(Optional::stream)
+                .collect(MapCollectors.entriesToMap());
+    }
+
+    public void loadAndSaveData(final ModisProduct product) {
+        final var years = loadYears(product);
         logger.info("Saving data for product {} at years {}", product, years.keySet());
         years.forEach(
                 (year, vectors) -> {
@@ -135,22 +168,9 @@ public class ModisDataService {
 
     private Stream<PointData<Object>> getPointData(
             final ModisProduct product, final Position point) {
-        final var path =
-                switch (product) {
-                    case LCT -> modisLctFolder;
-                    case GP, GP_SIMPLIFIED -> modisGPFolder;
-                    case POPULATION_DENSITY -> populationDensityFolder;
-                    case CLIMATE_PRECIPITATION -> climatePrecipitationFolder;
-                };
-        final IntFunction<String> productPathFilename =
-                year ->
-                        switch (product) {
-                            case LCT -> year + "LCT.tif";
-                            case GP, GP_SIMPLIFIED -> year + "_GP.tif";
-                            case POPULATION_DENSITY -> "Assaba_Pop_" + year + ".tif";
-                            case CLIMATE_PRECIPITATION -> year + "R.tif";
-                        };
-        return IntStream.range(2000, 2024)
+        final var path = getPath(product);
+        final var productPathFilename = productPathFilename(product);
+        return dataYearsStream()
                 .<Optional<PointData<Object>>>mapToObj(
                         year -> {
                             try {
@@ -166,10 +186,16 @@ public class ModisDataService {
                                                                     0, point.getOrdinate(1));
                                                             point.setOrdinate(1, tmp);
                                                         }
-                                                        return g.evaluate(point);
+                                                        final var rawVal =
+                                                                product.mapPointEval()
+                                                                        .apply(g.evaluate(point));
+                                                        if (product == LCT) {
+                                                            return getLandUseFromKey((int) rawVal);
+                                                        }
+                                                        return rawVal;
                                                     } catch (
                                                             final PointOutsideCoverageException e) {
-                                                        logger.warn(
+                                                        logger.trace(
                                                                 "Could not load point {}",
                                                                 point,
                                                                 e);
@@ -195,7 +221,7 @@ public class ModisDataService {
         return features -> new BaseFeatureCollection().setFeatures(product.mapAndFilter(features));
     }
 
-    private BaseFeatureCollection invertCoords(final BaseFeatureCollection featureCollection) {
+    public BaseFeatureCollection invertCoords(final BaseFeatureCollection featureCollection) {
         return new BaseFeatureCollection()
                 .setFeatures(
                         featureCollection.getFeatures().stream()
