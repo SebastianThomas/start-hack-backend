@@ -49,7 +49,11 @@ public class GridCoverageService {
         if (gridCoverage == null) {
             return null;
         }
-        if (gridCoverage.getCoordinateReferenceSystem2D().toWKT().contains("\"EPSG:4326\"")) {
+        if (gridCoverage.getCoordinateReferenceSystem2D().toWKT().contains("\"EPSG:4326\"")
+                || gridCoverage
+                        .getCoordinateReferenceSystem2D()
+                        .toWKT()
+                        .contains("GEOGCS[\"WGS 84\",")) {
             logger.info("Already in WGS84, skipping transform.");
             return gridCoverage;
         }
