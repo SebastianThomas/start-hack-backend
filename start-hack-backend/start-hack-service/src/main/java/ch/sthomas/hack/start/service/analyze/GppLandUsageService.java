@@ -39,9 +39,10 @@ import java.util.function.ToIntFunction;
 @Service
 public class GppLandUsageService {
     private static final Logger logger = LoggerFactory.getLogger(GppLandUsageService.class);
+    private static final double gridSizeDegrees = 0.004; // <500m
+
     private final ModisDataService modisDataService;
     private final Path outputFolder;
-    private final double gridSizeDegrees = 0.04; // <500m
     private final GridCoverageService gridCoverageService;
     private final ObjectMapper objectMapper;
 
