@@ -57,7 +57,7 @@ jobs:
 
             -   name: Set default docker image
                 run: |
-                    echo "DOCKER_IMAGE=eclipse-temurin:21" >> $GITHUB_ENV
+                    echo "DOCKER_IMAGE=sthomasch/eclipse-temurin-gdal:21" >> $GITHUB_ENV
 
             -   name: Docker image for build
                 run: |
