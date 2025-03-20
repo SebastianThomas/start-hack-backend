@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class GeoService {
@@ -44,7 +45,10 @@ public class GeoService {
         return new BaseFeature()
                 .setGeometry((Geometry) feature.getDefaultGeometry())
                 .setType("Feature")
-                .setId(feature.getID())
+                .setId(
+                        (String)
+                                Objects.requireNonNullElse(
+                                        feature.getID(), feature.getProperty("FID_1").getValue()))
                 .setProperties(
                         feature.getProperties().stream()
                                 .filter(
