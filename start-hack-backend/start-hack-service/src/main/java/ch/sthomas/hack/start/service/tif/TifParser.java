@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -23,6 +24,10 @@ public class TifParser {
     }
 
     public GridCoverage2D parse() throws IOException {
+        if (!Files.exists(path)) {
+            logger.info("No tif file found at {}. Skipping", path);
+            return null;
+        }
         final var wkt =
                 String.join(
                         "\n",

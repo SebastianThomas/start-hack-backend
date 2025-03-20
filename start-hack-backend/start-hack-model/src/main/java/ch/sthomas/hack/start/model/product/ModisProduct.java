@@ -10,16 +10,23 @@ import java.util.function.Predicate;
 
 public enum ModisProduct {
     LCT(
+            true,
             f -> !List.of(0, 128).contains((int) f.getProperty("DN")),
             f -> Map.ofEntries(Map.entry("landUse", getLandUseFromMinElev(f.getProperty("DN"))))),
-    GP(f -> true, f -> Map.of("prop", f.getProperty("DN"))); // TODO
+    GP(true, f -> true, f -> Map.of("gp", f.getProperty("DN"))),
+    GP_SIMPLIFIED(true, f -> true, f -> Map.of("gp-simplified", f.getProperty("DN"))),
+    POPULATION_DENSITY(false, f -> true, f -> Map.of("pop_dens", f.getProperty("DN"))), // TODO
+    ;
 
+    private final boolean invert;
     private final Predicate<BaseFeature> include;
     private final Function<BaseFeature, Map<String, Object>> properties;
 
     ModisProduct(
+            boolean invert,
             final Predicate<BaseFeature> include,
             final Function<BaseFeature, Map<String, Object>> properties) {
+        this.invert = invert;
         this.include = include;
         this.properties = properties;
     }
@@ -54,5 +61,13 @@ public enum ModisProduct {
             case 16 -> "Barren";
             default -> throw new IllegalArgumentException("Unknown id: " + minElev);
         };
+    }
+
+    public boolean invert() {
+        return invert;
+    }
+
+    public boolean simplify() {
+        return this == GP_SIMPLIFIED;
     }
 }

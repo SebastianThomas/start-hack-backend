@@ -1,5 +1,7 @@
 package ch.sthomas.hack.start.service;
 
+import static ch.sthomas.hack.start.model.product.ModisProduct.*;
+
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 import ch.sthomas.hack.start.model.product.ModisProduct;
@@ -19,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
@@ -27,6 +30,7 @@ public class ModisDataService {
     private static final Logger logger = LoggerFactory.getLogger(ModisDataService.class);
     private final Path modisLctFolder;
     private final Path modisGPFolder;
+    private final Path populationDensityFolder;
     private final Path outputFolder;
     private final GeoService geoService;
     private final GridCoverageService gridCoverageService;
@@ -35,6 +39,8 @@ public class ModisDataService {
     public ModisDataService(
             @Value("${ch.sthomas.hack.start.service.modis-lct.folder}") final String modisLctFolder,
             @Value("${ch.sthomas.hack.start.service.modis-gp.folder}") final String modisGPFolder,
+            @Value("${ch.sthomas.hack.start.service.population-density.folder}")
+                    final String populationDensityFolder,
             @Value("${ch.sthomas.hack.start.public.folder}") final String outputFolder,
             final GeoService geoService,
             final GridCoverageService gridCoverageService,
@@ -43,39 +49,46 @@ public class ModisDataService {
         this.outputFolder = Paths.get(outputFolder);
         this.modisLctFolder = Path.of(modisLctFolder);
         this.modisGPFolder = Path.of(modisGPFolder);
+        this.populationDensityFolder = Path.of(populationDensityFolder);
         this.gridCoverageService = gridCoverageService;
         this.objectMapper = objectMapper;
     }
 
     public void loadAndSaveData() {
-        loadAndSaveData(ModisProduct.LCT);
-        loadAndSaveData(ModisProduct.GP);
+        loadAndSaveData(LCT);
+        loadAndSaveData(GP);
+        loadAndSaveData(GP_SIMPLIFIED);
+        loadAndSaveData(POPULATION_DENSITY);
     }
 
     public void loadAndSaveData(final ModisProduct product) {
         final var path =
                 switch (product) {
                     case LCT -> modisLctFolder;
-                    case GP -> modisGPFolder;
+                    case GP, GP_SIMPLIFIED -> modisGPFolder;
+                    case POPULATION_DENSITY -> populationDensityFolder;
                 };
-        final var productPathFilenamePart =
-                switch (product) {
-                    case LCT -> "LCT.tif";
-                    case GP -> "_GP.tif";
-                };
+        final IntFunction<String> productPathFilename =
+                year ->
+                        switch (product) {
+                            case LCT -> year + "LCT.tif";
+                            case GP, GP_SIMPLIFIED -> year + "_GP.tif";
+                            case POPULATION_DENSITY -> "Assaba_Pop_" + year + ".tif";
+                        };
         final var gdalToFeature = gdalToFeature(product);
         final var years =
-                IntStream.range(2010, 2023)
+                IntStream.range(2000, 2024)
                         .<Optional<Map.Entry<Integer, BaseFeatureCollection>>>mapToObj(
                                 year -> {
                                     try {
-                                        final var filename = year + productPathFilenamePart;
+                                        final var filename = productPathFilename.apply(year);
                                         final var productPath = path.resolve(filename);
                                         return Optional.ofNullable(geoService.readTif(productPath))
                                                 .map(gridCoverageService::warpToWGS84)
+                                                .map(gridCoverageService.simplifyGrid(product))
                                                 .map(gridCoverageService::vectorize)
                                                 .map(gdalToFeature)
-                                                .map(this::invertCoords)
+                                                .map(f -> product.invert() ? invertCoords(f) : f)
                                                 .map(features -> Map.entry(year, features));
                                     } catch (final IOException e) {
                                         logger.info("Could not read Tif file and contour", e);

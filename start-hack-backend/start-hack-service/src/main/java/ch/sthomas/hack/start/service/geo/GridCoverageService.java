@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
+import ch.sthomas.hack.start.model.product.ModisProduct;
 import ch.sthomas.hack.start.service.tif.TifParser;
 import ch.sthomas.hack.start.service.utils.ProcessUtils;
 
@@ -30,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Service
 public class GridCoverageService {
@@ -204,5 +206,48 @@ public class GridCoverageService {
 
     private static Path createTempFile(final String prefix) throws IOException {
         return Files.createTempFile(prefix + "_", ".tif");
+    }
+
+    public Function<GridCoverage2D, GridCoverage2D> simplifyGrid(final ModisProduct product) {
+        if (!product.simplify()) {
+            return f -> f;
+        }
+
+        return grid -> {
+            final var originalImage = grid.getRenderedImage();
+            final var raster = originalImage.copyData(null);
+
+            final var width = raster.getWidth();
+            final var height = raster.getHeight();
+
+            // Loop through each pixel and modify its value based on the mapping
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
+                    final var originalValue =
+                            raster.getSample(x, y, 0); // Assuming single-band raster
+                    final var newValue = simplifyValue(originalValue); // Apply mapping function
+                    raster.setSample(x, y, 0, newValue);
+                }
+            }
+
+            // Create a new GridCoverage2D from the modified raster
+            final var factory = new GridCoverageFactory();
+            final var envelope = grid.getEnvelope2D();
+
+            return factory.create("SimplifiedCoverage", raster, envelope);
+        };
+    }
+
+    private int simplifyValue(final int value) {
+        if (value <= 0) return value; // Edge case
+
+        final var magnitude =
+                (int) Math.pow(10, Math.floor(Math.log10(value))); // Find nearest lower power of 10
+        final var firstDigit = value / magnitude; // Extract first digit
+
+        // Round first digit to 1, 2, or 5
+        if (firstDigit <= 2) return magnitude;
+        if (firstDigit <= 5) return 2 * magnitude;
+        return 5 * magnitude;
     }
 }
