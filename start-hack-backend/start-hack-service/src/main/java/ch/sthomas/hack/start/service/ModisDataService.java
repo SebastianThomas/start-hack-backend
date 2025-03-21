@@ -198,7 +198,12 @@ public class ModisDataService {
                                                                 product.mapPointEval()
                                                                         .apply(g.evaluate(point));
                                                         if (product == LCT) {
-                                                            return getLandUseFromKey((int) rawVal);
+                                                            if ((int) rawVal > 0) {
+                                                                return getLandUseFromKey(
+                                                                        (int) rawVal);
+                                                            } else {
+                                                                return Optional.empty();
+                                                            }
                                                         }
                                                         return rawVal;
                                                     } catch (
