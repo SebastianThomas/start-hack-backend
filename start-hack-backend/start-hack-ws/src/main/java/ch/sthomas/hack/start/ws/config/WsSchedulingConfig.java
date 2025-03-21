@@ -57,4 +57,10 @@ public class WsSchedulingConfig {
         gppLandUsageService.loadAndSaveUsageRanking();
         logger.info("Analysis ranking loaded");
     }
+
+    @Scheduled(initialDelay = 0, timeUnit = TimeUnit.SECONDS)
+    public void loadSpacialAggregated() throws IOException {
+        modisDataService.loadSpacialAggregatedData();
+        logger.info("Spacial aggregated data loaded");
+    }
 }

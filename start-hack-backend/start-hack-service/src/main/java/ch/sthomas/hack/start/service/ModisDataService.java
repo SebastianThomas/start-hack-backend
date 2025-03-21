@@ -7,11 +7,15 @@ import static java.time.ZoneOffset.UTC;
 import ch.sthomas.hack.start.model.feature.BaseFeature;
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 import ch.sthomas.hack.start.model.points.PointData;
+import ch.sthomas.hack.start.model.points.TimeLctStatData;
+import ch.sthomas.hack.start.model.points.TimeNumericStatData;
+import ch.sthomas.hack.start.model.points.TimeStatData;
 import ch.sthomas.hack.start.model.product.ModisProduct;
 import ch.sthomas.hack.start.model.util.MapCollectors;
 import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.primitives.*;
 
 import org.geotools.api.coverage.PointOutsideCoverageException;
 import org.geotools.api.geometry.Position;
@@ -27,14 +31,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.awt.image.*;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.MessageFormat;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -291,8 +299,75 @@ public class ModisDataService {
     }
 
     public List<PointData<Object>> getPointData(final Coordinate coordinate) {
-        return Arrays.stream(values())
+        return Arrays.stream(ModisProduct.values())
                 .flatMap(p -> getPointData(p, new Position2D(wgs84, coordinate.x, coordinate.y)))
                 .toList();
+    }
+
+    public void loadSpacialAggregatedData() throws IOException {
+        for (final var product : ModisProduct.values()) {
+            final var result = product == LCT ? countLctLandUses() : getTimeData(product);
+            objectMapper.writeValue(
+                    outputFolder
+                            .resolve("aggregated-" + product.name().toLowerCase() + ".json")
+                            .toFile(),
+                    result);
+        }
+    }
+
+    private Map<Integer, TimeStatData> countLctLandUses() {
+        final var grids = loadYearsRaster(LCT);
+        return grids.entrySet().stream()
+                .map(entry -> Map.entry(entry.getKey(), countLctLandUses(entry.getValue())))
+                .collect(MapCollectors.entriesToMap());
+    }
+
+    private TimeLctStatData countLctLandUses(final GridCoverage2D grid) {
+        final var buf = (DataBufferByte) grid.getRenderedImage().getData().getDataBuffer();
+        final var countsPerInt =
+                Bytes.asList(buf.getData()).stream()
+                        .map(Byte::intValue)
+                        .collect(Collectors.toMap(Function.identity(), e -> 1, Integer::sum));
+        return new TimeLctStatData(
+                countsPerInt.entrySet().stream()
+                        .filter(e -> e.getKey() > 0)
+                        .map(
+                                entry ->
+                                        Map.entry(
+                                                getLandUseFromKey(entry.getKey()),
+                                                entry.getValue()))
+                        .collect(MapCollectors.entriesToMap()));
+    }
+
+    private Map<Integer, TimeNumericStatData> getTimeData(final ModisProduct product) {
+        final var grids = loadYearsRaster(product);
+        if (Set.of(CLIMATE_PRECIPITATION, POPULATION_DENSITY, GP, GP_SIMPLIFIED)
+                .contains(product)) {
+            return grids.entrySet().stream()
+                    .map(entry -> Map.entry(entry.getKey(), aggregateSpace(entry.getValue())))
+                    .collect(MapCollectors.entriesToMap());
+        }
+        throw new IllegalArgumentException(
+                "Product " + product + " is not supported for Numeric Stat Data.");
+    }
+
+    private TimeNumericStatData aggregateSpace(final GridCoverage2D grid) {
+        final var dataBuffer = grid.getRenderedImage().getData().getDataBuffer();
+        final var stats =
+                (switch (dataBuffer) {
+                            case final DataBufferFloat f -> Floats.asList(f.getData());
+                            case final DataBufferDouble d -> Doubles.asList(d.getData());
+                            case final DataBufferInt i -> Ints.asList(i.getData());
+                            case final DataBufferByte b -> Bytes.asList(b.getData());
+                            case final DataBufferShort s -> Shorts.asList(s.getData());
+                            default ->
+                                    throw new IllegalArgumentException(
+                                            MessageFormat.format(
+                                                    "No data buffer with type {0} expected.",
+                                                    dataBuffer.getDataType()));
+                        })
+                        .stream().mapToDouble(Number::doubleValue).summaryStatistics();
+        return new TimeNumericStatData(
+                stats.getMin(), stats.getMax(), stats.getAverage(), stats.getCount());
     }
 }
