@@ -34,7 +34,10 @@ spec:
             - { name: data, mountPath: /data }
             - { name: public, mountPath: /public }
           env:
-            - { name: ADDITIONAL_JAVA_OPTS, value: "-XX:MaxRAMPercentage=70.0" }
+            # GDAL does its raster work in NATIVE memory, on top of the heap, so
+            # keep the heap well under the limit and let G1 hand memory back
+            # after the one-shot startup jobs finish.
+            - { name: ADDITIONAL_JAVA_OPTS, value: "-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC -XX:G1PeriodicGCInterval=300000" }
             - { name: SPRING_DATASOURCE_URL,      valueFrom: { secretKeyRef: { name: start-hack-db-app, key: jdbc-uri } } }
             - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: username } } }
             - { name: SPRING_DATASOURCE_PASSWORD, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: password } } }
@@ -50,5 +53,6 @@ spec:
             periodSeconds: 15
           resources:
             # the startup @Scheduled jobs do GDAL raster work -> CPU spike + RAM
+            # (heap ~50% of the limit + GDAL native + JVM overhead ~= 1.6-1.9Gi)
             requests: { cpu: 150m, memory: 512Mi }
             limits: { memory: 1536Mi }
