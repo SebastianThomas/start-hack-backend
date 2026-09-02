@@ -69,6 +69,24 @@ jobs:
                     username: ${{ secrets.docker_hub_username }}
                     password: ${{ secrets.docker_hub_password }}
 
+            # The entrypoint's JVM flags are only a default for running the image
+            # bare (compose.yaml). They come BEFORE $ADDITIONAL_JAVA_OPTS so the
+            # K3s deployment can override them - deploy/deployment.yaml pins an
+            # explicit -Xmx, which wins over any RAMPercentage flag.
+            #
+            # There used to be a -XX:MinRAMPercentage=60.0 here. It did nothing:
+            # MinRAMPercentage only caps the heap when total RAM is under ~256MB,
+            # it does not set the initial heap (that is InitialRAMPercentage). It
+            # cost real time during a memory investigation, so it is gone.
+            # MaxRAMPercentage is 60 rather than 80 because this app also does
+            # GDAL raster work in native memory, on top of the heap.
+            #
+            # UseG1GC is explicit because ergonomics only defaults to G1 on a
+            # "server-class" machine (>=2 CPUs AND >=1792MB). Under any smaller
+            # memory limit it silently falls back to SerialGC, which collects
+            # only when the heap is full and never uncommits - that is exactly
+            # how the ws pod ended up holding 1.5Gi for a ~250MB working set.
+            # Forcing G1 keeps a bare `docker run` / compose run out of that trap.
             -   name: Build and push docker image
                 run: |
                     mvn --batch-mode package jib:build \
@@ -81,7 +99,7 @@ jobs:
                     -Djib.to.auth.password=${{ secrets.docker_hub_password }} \
                     -Djib.container.volumes='/config/' \
                     -Djib.container.environment=VERSION_TAG_NAME="${{ env.TAG_NAME }}",SPRING_CONFIG_LOCATION="/config/",SPRING_DOCKER_COMPOSE_ENABLED=false \
-                    -Djib.container.entrypoint='sh,-c,java -XX:MinRAMPercentage=60.0 -XX:MaxRAMPercentage=80.0 $ADDITIONAL_JAVA_OPTS -cp @/app/jib-classpath-file @/app/jib-main-class-file $@'
+                    -Djib.container.entrypoint='sh,-c,java -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC $ADDITIONAL_JAVA_OPTS -cp @/app/jib-classpath-file @/app/jib-main-class-file $@'
 
     # Roll the freshly-pushed image out to K3s. Only when the build ref is a v*
     # tag - a plain branch build just publishes the image. deploy.yml also runs
