@@ -1,8 +1,6 @@
 ---
-# Shared with the soil-metrics-web frontend repo. Pins pods to the Strato node.
+# Shared with the soil-metrics-web frontend repo - keep the two identical.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: start-hack
-  annotations:
-    scheduler.alpha.kubernetes.io/node-selector: homelab.sthomas.ch/location=strato

@@ -34,20 +34,10 @@ spec:
             - { name: data, mountPath: /data }
             - { name: public, mountPath: /public }
           env:
-            # Sized from measurement, not percentages. With a 1536Mi limit the JVM
-            # sat at 1.4Gi RSS while idle: a %-based max heap resolved to 1076MB,
-            # and because a limit under 1792MB puts ergonomics below the
-            # "server-class" threshold it picked SerialGC, which only collects when
-            # the heap is full and never uncommits. A forced full GC showed just
-            # ~102MB live (+120MB metaspace) - the other ~1.2Gi was headroom the
-            # JVM had taken and had no reason to give back.
-            #
-            # So: pin -Xmx instead of a percentage (an explicit -Xmx also
-            # overrides the image entrypoint's MaxRAMPercentage=80), ask for G1
-            # explicitly rather than hoping ergonomics picks it, and let its
-            # periodic concurrent cycle uncommit while idle. 640m is ~6x the live
-            # set and still above the 426MB the old heap held pre-GC, so the
-            # startup GDAL jobs keep plenty of room.
+            # -Xmx, not a percentage: under a 1792MB limit the JVM picks SerialGC,
+            # which never uncommits, so a %-based heap grows to its max and stays
+            # there (was 1.4Gi RSS for ~102MB live). G1 is explicit for the same
+            # reason; its periodic cycle hands memory back while idle.
             - { name: ADDITIONAL_JAVA_OPTS, value: "-Xms128m -Xmx640m -XX:MaxMetaspaceSize=192m -XX:+UseG1GC -XX:G1PeriodicGCInterval=120000 -XX:+G1PeriodicGCInvokesConcurrent" }
             - { name: SPRING_DATASOURCE_URL,      valueFrom: { secretKeyRef: { name: start-hack-db-app, key: jdbc-uri } } }
             - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: username } } }
@@ -63,19 +53,8 @@ spec:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 15
           resources:
-            # Measured on the rollout of the flags above, not estimated:
-            #   startup peak (VmHWM)  997MB
-            #   steady state          ~620MB RSS / ~720Mi working set
-            #   heap committed        ~264MB against the 640m max (G1 uncommits)
-            #
-            # The startup peak is what sets the floor for the limit, NOT the
-            # steady state: the GDAL raster jobs really do allocate ~1Gi for a
-            # few seconds. Do not size this off the idle number - dropping the
-            # limit to ~768Mi would OOMKill the pod during startup. 1280Mi keeps
-            # ~280MB over the observed peak.
-            #
-            # (An earlier revision of this comment blamed the old 1445MB VmHWM
-            # entirely on un-uncommitted SerialGC heap. That was wrong: the old
-            # heap was simply sitting above the GDAL spike, hiding it.)
+            # Measured: startup peak 997MB, steady ~620MB RSS. The limit is set by
+            # the startup GDAL jobs, not the idle figure - sizing it down to
+            # ~768Mi would OOMKill the pod on boot.
             requests: { cpu: 150m, memory: 448Mi }
             limits: { memory: 1280Mi }

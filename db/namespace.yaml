@@ -1,10 +1,6 @@
 ---
-# Same Namespace as deploy/namespace.yaml - db.yml usually runs first, so it is
-# repeated here (apply is idempotent) to guarantee the node-selector annotation
-# is set before the CNPG pod is scheduled.
+# Same Namespace as deploy/namespace.yaml, repeated so db.yml can run first.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: start-hack
-  annotations:
-    scheduler.alpha.kubernetes.io/node-selector: homelab.sthomas.ch/location=strato
