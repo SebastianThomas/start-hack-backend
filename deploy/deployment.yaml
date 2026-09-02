@@ -34,10 +34,21 @@ spec:
             - { name: data, mountPath: /data }
             - { name: public, mountPath: /public }
           env:
-            # GDAL does its raster work in NATIVE memory, on top of the heap, so
-            # keep the heap well under the limit and let G1 hand memory back
-            # after the one-shot startup jobs finish.
-            - { name: ADDITIONAL_JAVA_OPTS, value: "-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC -XX:G1PeriodicGCInterval=300000" }
+            # Sized from measurement, not percentages. With a 1536Mi limit the JVM
+            # sat at 1.4Gi RSS while idle: a %-based max heap resolved to 1076MB,
+            # and because a limit under 1792MB puts ergonomics below the
+            # "server-class" threshold it picked SerialGC, which only collects when
+            # the heap is full and never uncommits. A forced full GC showed just
+            # ~102MB live (+120MB metaspace) - the other ~1.2Gi was headroom the
+            # JVM had taken and had no reason to give back.
+            #
+            # So: pin -Xmx instead of a percentage (an explicit -Xmx also
+            # overrides the image entrypoint's MaxRAMPercentage=80), ask for G1
+            # explicitly rather than hoping ergonomics picks it, and let its
+            # periodic concurrent cycle uncommit while idle. 640m is ~6x the live
+            # set and still above the 426MB the old heap held pre-GC, so the
+            # startup GDAL jobs keep plenty of room.
+            - { name: ADDITIONAL_JAVA_OPTS, value: "-Xms128m -Xmx640m -XX:MaxMetaspaceSize=192m -XX:+UseG1GC -XX:G1PeriodicGCInterval=120000 -XX:+G1PeriodicGCInvokesConcurrent" }
             - { name: SPRING_DATASOURCE_URL,      valueFrom: { secretKeyRef: { name: start-hack-db-app, key: jdbc-uri } } }
             - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: username } } }
             - { name: SPRING_DATASOURCE_PASSWORD, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: password } } }
@@ -52,7 +63,12 @@ spec:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 15
           resources:
-            # the startup @Scheduled jobs do GDAL raster work -> CPU spike + RAM
-            # (heap ~50% of the limit + GDAL native + JVM overhead ~= 1.6-1.9Gi)
-            requests: { cpu: 150m, memory: 512Mi }
-            limits: { memory: 1536Mi }
+            # Worst case with the flags above: 640 heap + 192 metaspace + ~180
+            # code cache / threads / GC structures / GDAL native ~= 1.0Gi, so a
+            # 1280Mi ceiling leaves real slack. Peak RSS since start (VmHWM) was
+            # 1445MB and that was all un-uncommitted SerialGC heap, not GDAL - the
+            # startup jobs never showed a spike above steady state, and the
+            # container has never been OOMKilled.
+            # Steady state should now settle around 450-550Mi.
+            requests: { cpu: 150m, memory: 448Mi }
+            limits: { memory: 1280Mi }
