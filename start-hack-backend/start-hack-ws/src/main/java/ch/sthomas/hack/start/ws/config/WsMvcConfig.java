@@ -38,8 +38,11 @@ public class WsMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // The public datasets are meant to be fetched cross-origin (the legacy
-        // start-hack-public vhost sent Access-Control-Allow-Origin: *).
+        // The SPA (soil-metrics[-web].sthomas.ch) calls the API and the datasets
+        // cross-origin on soil-metrics-ws.sthomas.ch, and the public datasets are
+        // also meant for third parties (the legacy vhosts sent
+        // Access-Control-Allow-Origin: *). Everything here is read-only.
+        registry.addMapping("/v1/**").allowedOrigins("*").allowedMethods("GET", "HEAD");
         registry.addMapping("/public/**").allowedOrigins("*").allowedMethods("GET", "HEAD");
     }
 }

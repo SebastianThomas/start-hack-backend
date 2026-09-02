@@ -4,10 +4,16 @@ K3s manifests for the start-hack backend (`start-hack-ws`). One deployment,
 namespace `start-hack`. The `soil-metrics-web` frontend deploys into the same
 namespace from its own repo.
 
-| host | routes to | owned by |
+Hostnames (all `*.sthomas.ch`, wildcard cert, Traefik edge):
+
+| host | routes to | HTTPRoute |
 |---|---|---|
-| `soil-metrics-web.sthomas.ch` | `/` → SPA, `/v1` + `/public` → this backend (same origin, no CORS) | frontend repo's HTTPRoute |
-| `soil-metrics-public.sthomas.ch` | `/*` → this backend `/public/*` (URL-rewritten, CORS `*`) | `deploy/httproute.yaml` here |
+| `soil-metrics-ws.sthomas.ch` | the API — `/v1`, `/public`, Swagger — everything → `start-hack-ws` | `deploy/httproute.yaml` |
+| `soil-metrics-public.sthomas.ch` | `/*` → `start-hack-ws` `/public/*` (`addPrefix` Middleware), CORS `*` | `deploy/httproute.yaml` |
+| `soil-metrics.sthomas.ch`, `soil-metrics-web.sthomas.ch` | the SPA | frontend repo |
+
+CORS for `/v1/**` and `/public/**` is `*` (`WsMvcConfig`) — the SPA calls
+`soil-metrics-ws.sthomas.ch` cross-origin.
 
 ## Storage
 

@@ -1,16 +1,32 @@
 ---
+# soil-metrics-ws.sthomas.ch - the API (start-hack-ws), everything straight
+# through. This is what the SPA's VITE_API_URL points at (cross-origin; CORS
+# for /v1/** and /public/** is `*` in WsMvcConfig) and where Swagger lives
+# (/api-docs/swagger-ui). Replaces the legacy start-hack-ws-dev vhost.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: soil-metrics-ws
+spec:
+  parentRefs:
+    - name: traefik-gateway
+      namespace: kube-system
+  hostnames:
+    - soil-metrics-ws.sthomas.ch
+  rules:
+    - backendRefs:
+        - name: start-hack-ws
+          port: 80
+---
 # soil-metrics-public.sthomas.ch - direct public access to the derived geojson
 # datasets (replaces the legacy start-hack-public nginx vhost, which root-served
 # /var/www/public). The backend serves the same files under /public/**, so we
-# prepend /public to every request. CORS `*` comes from WsMvcConfig.
+# prepend /public to every request.
 #
 # `addPrefix` (a Traefik Middleware via an ExtensionRef filter) is used instead
 # of the Gateway-API-native URLRewrite/ReplacePrefixMatch because the latter is
 # ambiguous for a "/" match prefix across implementations - addPrefix just
 # prepends, unconditionally.
-#
-# The frontend does NOT use this host - it fetches /public/* (and /v1/*) from
-# soil-metrics-web.sthomas.ch, same-origin (see the frontend repo's HTTPRoute).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -22,7 +38,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: start-hack-public
+  name: soil-metrics-public
 spec:
   parentRefs:
     - name: traefik-gateway
