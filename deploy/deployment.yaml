@@ -63,12 +63,19 @@ spec:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 15
           resources:
-            # Worst case with the flags above: 640 heap + 192 metaspace + ~180
-            # code cache / threads / GC structures / GDAL native ~= 1.0Gi, so a
-            # 1280Mi ceiling leaves real slack. Peak RSS since start (VmHWM) was
-            # 1445MB and that was all un-uncommitted SerialGC heap, not GDAL - the
-            # startup jobs never showed a spike above steady state, and the
-            # container has never been OOMKilled.
-            # Steady state should now settle around 450-550Mi.
+            # Measured on the rollout of the flags above, not estimated:
+            #   startup peak (VmHWM)  997MB
+            #   steady state          ~620MB RSS / ~720Mi working set
+            #   heap committed        ~264MB against the 640m max (G1 uncommits)
+            #
+            # The startup peak is what sets the floor for the limit, NOT the
+            # steady state: the GDAL raster jobs really do allocate ~1Gi for a
+            # few seconds. Do not size this off the idle number - dropping the
+            # limit to ~768Mi would OOMKill the pod during startup. 1280Mi keeps
+            # ~280MB over the observed peak.
+            #
+            # (An earlier revision of this comment blamed the old 1445MB VmHWM
+            # entirely on un-uncommitted SerialGC heap. That was wrong: the old
+            # heap was simply sitting above the GDAL spike, hiding it.)
             requests: { cpu: 150m, memory: 448Mi }
             limits: { memory: 1280Mi }
