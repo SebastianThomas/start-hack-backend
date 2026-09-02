@@ -22,9 +22,11 @@ namespace from its own repo.
 
 ## Workflows
 
-- `db.yml` (manual) — provision/reconcile the CNPG Cluster.
-- `deploy.yml` — auto-deploys after `mvn_docker_image.yaml` builds a `v*` tag
-  reachable from `main`; manual dispatch otherwise.
+- `db.yml` (manual only) — provision/reconcile the CNPG Cluster. Never a side
+  effect of a release.
+- `deploy.yml` — reusable (`workflow_call`) + `workflow_dispatch`.
+  `mvn_docker_image.yaml` calls it after it pushes the image for a `v*` tag;
+  run it standalone to redeploy any already-built tag.
 
 ## First bring-up
 
@@ -40,12 +42,14 @@ ssh strato "sudo k3s kubectl -n start-hack exec -i start-hack-db-1 -- \
   pg_restore -d start_hack --no-owner --no-privileges --role=start_hack --no-acl" \
   < ~/Downloads/db_dumps/start-hack.pg17-postgis35.dump || true
 
-# 3. deploy (auto after the image build, or: gh workflow run deploy.yml -f tag=<tag>)
+# 3. tag + push -> mvn_docker_image.yaml builds and then calls deploy.yml
+#    (or redeploy an existing tag:  gh workflow run deploy.yml -f tag=<tag>)
 
-# 4. seed /data into the PVC via the running pod
-ssh strato "cd /root/start-hack-backend/data && sudo tar czf - ." \
-  | ssh strato "sudo k3s kubectl -n start-hack exec -i deploy/start-hack-ws -- tar xzf - -C /data"
+# 4. seed /data into the PVC via the running pod. The container has tar but no
+#    gzip, so pipe an uncompressed stream:
+ssh strato "sudo tar cf - -C /root/start-hack-backend/data . \
+  | sudo k3s kubectl -n start-hack exec -i deploy/start-hack-ws -- tar xf - -C /data"
 
-# 5. restart so WsSchedulingConfig regenerates /public
+# 5. restart so WsSchedulingConfig regenerates /public (gpp-ranking-*.geojson)
 ssh strato "sudo k3s kubectl -n start-hack rollout restart deploy/start-hack-ws"
 ```

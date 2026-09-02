@@ -8,7 +8,7 @@ on:
             ref_name:
                 required: true
                 type: string
-                description: Tag to deploy
+                description: Tag to build (and, if it is a tag, deploy)
 
 jobs:
     create-docker-image:
@@ -82,3 +82,14 @@ jobs:
                     -Djib.container.volumes='/config/' \
                     -Djib.container.environment=VERSION_TAG_NAME="${{ env.TAG_NAME }}",SPRING_CONFIG_LOCATION="/config/",SPRING_DOCKER_COMPOSE_ENABLED=false \
                     -Djib.container.entrypoint='sh,-c,java -XX:MinRAMPercentage=60.0 -XX:MaxRAMPercentage=80.0 $ADDITIONAL_JAVA_OPTS -cp @/app/jib-classpath-file @/app/jib-main-class-file $@'
+
+    # Roll the freshly-pushed image out to K3s. Only when the build ref is a v*
+    # tag - a plain branch build just publishes the image. deploy.yml also runs
+    # standalone ("Run workflow") to redeploy any already-built tag.
+    deploy:
+        needs: create-docker-image
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: ./.github/workflows/deploy.yml
+        with:
+            tag: ${{ github.ref_name }}
+        secrets: inherit
