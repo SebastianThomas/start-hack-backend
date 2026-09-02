@@ -1,0 +1,16 @@
+---
+# Input reference datasets (Admin layers, MODIS, population density, …) the
+# backend reads from /data. ~50 MB, effectively static - seeded once from the
+# legacy VPS (see README). /public (the derived geojson the frontend fetches)
+# is NOT here: the backend regenerates it into an emptyDir on every start
+# (WsSchedulingConfig).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: start-hack-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 256Mi

@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: start-hack-ws
+  labels: { app: start-hack-ws }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # RWO PVC - only one pod at a time
+  selector:
+    matchLabels: { app: start-hack-ws }
+  template:
+    metadata:
+      labels: { app: start-hack-ws }
+    spec:
+      volumes:
+        - name: config
+          configMap: { name: start-hack-ws-config }
+        - name: data
+          persistentVolumeClaim: { claimName: start-hack-data }
+        - name: public
+          emptyDir: { sizeLimit: 1Gi }
+      containers:
+        - name: ws
+          image: ${WS_IMAGE}
+          ports:
+            - { name: http, containerPort: 8080 }
+          volumeMounts:
+            # jib sets SPRING_CONFIG_LOCATION=/config/ -> loads
+            # /config/application.properties (+ -prod for the prod profile).
+            - { name: config, mountPath: /config, readOnly: true }
+            # /data is the input reference set - the app only reads it, but the
+            # mount stays writable so it can be seeded via `kubectl exec ... tar`.
+            - { name: data, mountPath: /data }
+            - { name: public, mountPath: /public }
+          env:
+            - { name: ADDITIONAL_JAVA_OPTS, value: "-XX:MaxRAMPercentage=70.0" }
+            - { name: SPRING_DATASOURCE_URL,      valueFrom: { secretKeyRef: { name: start-hack-db-app, key: jdbc-uri } } }
+            - { name: SPRING_DATASOURCE_USERNAME, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: username } } }
+            - { name: SPRING_DATASOURCE_PASSWORD, valueFrom: { secretKeyRef: { name: start-hack-db-app, key: password } } }
+          startupProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+            failureThreshold: 60          # Flyway + JVM + GDAL init
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 15
+          resources:
+            # the startup @Scheduled jobs do GDAL raster work -> CPU spike + RAM
+            requests: { cpu: 150m, memory: 512Mi }
+            limits: { memory: 1536Mi }

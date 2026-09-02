@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: start-hack
+
+# `start-hack-db-app` is CNPG's generated secret. No app secrets - the config
+# is entirely non-sensitive.
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml
+
+configMapGenerator:
+  - name: start-hack-ws-config
+    files:
+      - config/application.properties
+      - config/application-prod.properties

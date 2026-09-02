@@ -1,0 +1,41 @@
+---
+# soil-metrics-public.sthomas.ch - direct public access to the derived geojson
+# datasets (replaces the legacy start-hack-public nginx vhost, which root-served
+# /var/www/public). The backend serves the same files under /public/**, so we
+# prepend /public to every request. CORS `*` comes from WsMvcConfig.
+#
+# `addPrefix` (a Traefik Middleware via an ExtensionRef filter) is used instead
+# of the Gateway-API-native URLRewrite/ReplacePrefixMatch because the latter is
+# ambiguous for a "/" match prefix across implementations - addPrefix just
+# prepends, unconditionally.
+#
+# The frontend does NOT use this host - it fetches /public/* (and /v1/*) from
+# soil-metrics-web.sthomas.ch, same-origin (see the frontend repo's HTTPRoute).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: add-public-prefix
+spec:
+  addPrefix:
+    prefix: /public
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: start-hack-public
+spec:
+  parentRefs:
+    - name: traefik-gateway
+      namespace: kube-system
+  hostnames:
+    - soil-metrics-public.sthomas.ch
+  rules:
+    - filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: add-public-prefix
+      backendRefs:
+        - name: start-hack-ws
+          port: 80
