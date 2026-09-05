@@ -3,7 +3,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: start-hack-ws
-  labels: { app: start-hack-ws }
+  labels: 
+    app: start-hack-ws
+    app.kubernetes.io/name: start-hack-ws
 spec:
   replicas: 1
   strategy: { type: Recreate }   # RWO PVC - only one pod at a time
@@ -11,7 +13,9 @@ spec:
     matchLabels: { app: start-hack-ws }
   template:
     metadata:
-      labels: { app: start-hack-ws }
+      labels:
+        app: start-hack-ws
+        app.kubernetes.io/name: start-hack-ws
     spec:
       volumes:
         - name: config
