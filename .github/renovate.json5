@@ -1,0 +1,85 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    ':dependencyDashboard',
+    ':semanticCommitsDisabled',
+  ],
+
+  // Same rhythm as the other backend repos: batch dependency update noise.
+  // This repository has no pull-request build, so every update needs review.
+  timezone: 'Europe/Zurich',
+  schedule: ['before 6am on monday'],
+  prConcurrentLimit: 5,
+  labels: ['dependencies'],
+
+  assignees: ['SebastianThomas'],
+  reviewers: ['SebastianThomas'],
+  assignAutomerge: true,
+  automerge: false,
+
+  // Renovate's kubernetes manager has no default file list.
+  kubernetes: {
+    managerFilePatterns: [
+      '/^deploy/.+\\.ya?ml$/',
+    ],
+  },
+
+  packageRules: [
+    // These reactor modules are built locally and are not registry dependencies.
+    {
+      matchPackageNames: ['ch.sthomas.**'],
+      enabled: false,
+    },
+    // Use Google's Maven Central mirror to avoid shared-IP throttling while
+    // retaining OSGeo for GeoTools artifacts that are not published to Central.
+    {
+      matchDatasources: ['maven'],
+      registryUrls: [
+        'https://maven-central.storage-download.googleapis.com/maven2/',
+        'https://repo.osgeo.org/repository/release/',
+      ],
+    },
+    // Runtime dependencies are grouped, but still require human review.
+    {
+      matchManagers: ['maven'],
+      matchUpdateTypes: ['minor', 'patch'],
+      groupName: 'backend dependencies',
+    },
+    // Keep test and build tooling together for one focused review.
+    {
+      matchManagers: ['maven'],
+      matchDepTypes: ['test', 'build'],
+      matchUpdateTypes: ['minor', 'patch'],
+      groupName: 'backend test and build tooling',
+    },
+    // Spring Boot moves on its own because it manages most other versions.
+    {
+      matchPackageNames: ['org.springframework.boot:**'],
+      groupName: 'spring boot',
+      automerge: false,
+    },
+    // Group non-breaking GitHub Actions updates.
+    {
+      matchManagers: ['github-actions'],
+      matchUpdateTypes: ['minor', 'patch', 'digest'],
+      groupName: 'github-actions',
+    },
+    // Container updates are not exercised by the Maven build and need review.
+    {
+      matchManagers: ['docker-compose', 'kubernetes'],
+      groupName: 'container images',
+    },
+    // Existing PostGIS data requires an explicit migration between majors.
+    {
+      matchPackageNames: ['postgres', 'postgis/postgis'],
+      matchUpdateTypes: ['major'],
+      enabled: false,
+    },
+    // Java upgrades coordinate the workflow, Maven release and base image.
+    {
+      matchDatasources: ['java-version'],
+      enabled: false,
+    },
+  ],
+}
