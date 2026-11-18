@@ -73,6 +73,8 @@ jobs:
             # compose; they precede $ADDITIONAL_JAVA_OPTS so K8s can override them.
             # UseG1GC is explicit because below a 1792MB limit ergonomics falls
             # back to SerialGC, which never uncommits.
+            # Disable the vulnerable hardware-accelerated Base64 implementation
+            # (CVE-2026-114938) while retaining compatibility with ARM hosts.
             -   name: Build and push docker image
                 run: |
                     mvn --batch-mode package jib:build \
@@ -85,7 +87,7 @@ jobs:
                     -Djib.to.auth.password=${{ secrets.docker_hub_password }} \
                     -Djib.container.volumes='/config/' \
                     -Djib.container.environment=VERSION_TAG_NAME="${{ env.TAG_NAME }}",SPRING_CONFIG_LOCATION="/config/",SPRING_DOCKER_COMPOSE_ENABLED=false \
-                    -Djib.container.entrypoint='sh,-c,java -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC $ADDITIONAL_JAVA_OPTS -cp @/app/jib-classpath-file @/app/jib-main-class-file $@'
+                    -Djib.container.entrypoint='sh,-c,java -XX:-UseBASE64Intrinsics -XX:MaxRAMPercentage=60.0 -XX:+UseG1GC $ADDITIONAL_JAVA_OPTS -cp @/app/jib-classpath-file @/app/jib-main-class-file $@'
 
     # Roll the freshly-pushed image out to K3s. Only when the build ref is a v*
     # tag - a plain branch build just publishes the image. deploy.yml also runs
