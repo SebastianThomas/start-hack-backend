@@ -1,7 +1,7 @@
 package ch.sthomas.hack.start.model.feature.annotations;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 import org.locationtech.jts.geom.*;
 import org.n52.jackson.datatype.jts.*;

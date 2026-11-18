@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.16</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
 
@@ -70,14 +70,14 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.10.0</version>
+            <version>3.2.0</version>
         </dependency>
 
         <!-- Geo JTS Jackson -->
         <dependency>
             <groupId>org.n52.jackson</groupId>
             <artifactId>jackson-datatype-jts</artifactId>
-            <version>1.2.10</version>
+            <version>3.0.5</version>
         </dependency>
         <dependency>
             <artifactId>jts-core</artifactId>
@@ -160,11 +160,6 @@
             <groupId>de.westemeyer</groupId>
             <artifactId>artifact-version-service</artifactId>
             <version>3.0.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.module</groupId>
-            <artifactId>jackson-module-paranamer</artifactId>
         </dependency>
 
         <!-- Apache Commons -->

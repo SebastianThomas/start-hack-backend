@@ -2,7 +2,7 @@ package ch.sthomas.hack.start.ws;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration;
+import org.springframework.boot.webmvc.autoconfigure.error.ErrorMvcAutoConfiguration;
 import org.zalando.problem.spring.web.autoconfigure.security.ProblemSecurityAutoConfiguration;
 
 @SpringBootApplication(

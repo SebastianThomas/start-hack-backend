@@ -8,7 +8,7 @@ import ch.sthomas.hack.start.model.product.ModisProduct;
 import ch.sthomas.hack.start.service.geo.tif.TifParser;
 import ch.sthomas.hack.start.service.utils.ProcessUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;

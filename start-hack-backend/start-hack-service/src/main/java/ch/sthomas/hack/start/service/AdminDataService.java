@@ -2,7 +2,7 @@ package ch.sthomas.hack.start.service;
 
 import ch.sthomas.hack.start.model.feature.BaseFeatureCollection;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.slf4j.Logger;

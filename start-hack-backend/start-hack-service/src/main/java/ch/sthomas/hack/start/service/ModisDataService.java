@@ -14,7 +14,8 @@ import ch.sthomas.hack.start.model.product.ModisProduct;
 import ch.sthomas.hack.start.model.util.MapCollectors;
 import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 import com.google.common.primitives.*;
 
 import org.geotools.api.coverage.PointOutsideCoverageException;
@@ -168,7 +169,7 @@ public class ModisDataService {
                     try {
                         objectMapper.writeValue(outputFile, vectors);
                         logger.debug("Saved vectors to {}", outputFile.toPath().toAbsolutePath());
-                    } catch (final IOException e) {
+                    } catch (final JacksonException e) {
                         logger.info(e.getMessage());
                     }
                 });

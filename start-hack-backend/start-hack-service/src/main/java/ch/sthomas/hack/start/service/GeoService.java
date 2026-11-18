@@ -7,7 +7,7 @@ import ch.sthomas.hack.start.service.geo.GridCoverageService;
 import ch.sthomas.hack.start.service.geo.shapefile.ShapefileParser;
 import ch.sthomas.hack.start.service.geo.tif.TifParser;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.Nullable;
 

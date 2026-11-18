@@ -12,7 +12,7 @@ import ch.sthomas.hack.start.model.util.MapCollectors;
 import ch.sthomas.hack.start.service.ModisDataService;
 import ch.sthomas.hack.start.service.geo.GridCoverageService;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.pivovarit.function.ThrowingBiConsumer;
 
 import org.apache.commons.lang3.tuple.Pair;
