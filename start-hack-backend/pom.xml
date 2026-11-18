@@ -138,7 +138,7 @@
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-process-raster</artifactId>
-            <version>32.4</version>
+            <version>35.2</version>
         </dependency>
 
         <!-- Logging -->
