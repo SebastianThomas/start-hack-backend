@@ -168,7 +168,7 @@ public class GridCoverageService {
     public static Path write(final @NotNull GridCoverage gridCoverage) throws IOException {
         final var inputGribFile = createTempFile("grid-coverage");
         final var writer = new GeoTiffWriter(inputGribFile.toFile());
-        writer.write(gridCoverage, null);
+        writer.write(gridCoverage);
         logger.trace("Wrote grid coverage to {}.", inputGribFile);
         return inputGribFile;
     }

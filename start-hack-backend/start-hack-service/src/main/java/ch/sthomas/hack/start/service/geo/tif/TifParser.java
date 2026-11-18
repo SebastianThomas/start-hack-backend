@@ -46,7 +46,7 @@ public class TifParser {
                             : CRS.parseWKT(wkt);
             final var hints = new Hints(Hints.DEFAULT_COORDINATE_REFERENCE_SYSTEM, crs);
             final var reader = new GeoTiffReader(path.toFile(), hints);
-            return reader.read(null);
+            return reader.read();
         } catch (final FactoryException e) {
             logger.error("Could not read GeoTIFF", e);
             return null;
