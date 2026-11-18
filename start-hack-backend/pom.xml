@@ -106,7 +106,7 @@
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-epsg-hsql</artifactId>
-            <version>32.4</version>
+            <version>35.2</version>
         </dependency>
 
         <!-- Checked Exceptions-enabled Java 8+ functional interfaces + adapters -->
